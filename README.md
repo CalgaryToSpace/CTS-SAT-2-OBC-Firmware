@@ -10,7 +10,7 @@ Firmware for the CTS-SAT-2 mission. Runs on the STM32L4A6ZG-based Onboard Comput
 rustup update
 rustup target add thumbv7em-none-eabihf
 rustup component add llvm-tools
-cargo install cargo-binutils probe-rs-tools cargo-expand
+cargo install cargo-binutils probe-rs-tools cargo-expand just
 ```
 
 3. Open this repo in VS Code.
