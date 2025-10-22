@@ -8,15 +8,25 @@ use cortex_m::interrupt::Mutex;
 use cortex_m::interrupt::free as critical_section;
 use cortex_m::peripheral::NVIC;
 use rtt_target::{rprintln, rtt_init_print};
-use stm32l4xx_hal::prelude::*;
+use static_cell::StaticCell;
 use stm32l4xx_hal::{
     self as stm32_hal,
+    dma::CircReadDma as _,
     gpio::{Output, PushPull, gpioc::PC7},
+    prelude::*,
 };
 
 mod tcmd_uart;
 
 use tcmd_uart::{process_uart_commands, send_uart2};
+
+type Usart2Serial = stm32_hal::serial::Serial<
+    stm32_hal::stm32::USART2,
+    (
+        stm32_hal::gpio::gpiod::PD5<stm32_hal::gpio::Alternate<PushPull, 7>>,
+        stm32_hal::gpio::gpiod::PD6<stm32_hal::gpio::Alternate<PushPull, 7>>,
+    ),
+>;
 
 static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
     Mutex::new(RefCell::new(None));
@@ -24,11 +34,11 @@ static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
 static PERIPHERAL_DELAY_TIMER: Mutex<RefCell<Option<stm32_hal::delay::Delay>>> =
     Mutex::new(RefCell::new(None));
 
-/// RCC = Reset and Control Clock.
 static PERIPHERAL_RCC: Mutex<RefCell<Option<stm32_hal::rcc::Rcc>>> = Mutex::new(RefCell::new(None));
-
 static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
     Mutex::new(RefCell::new(None));
+
+static UART_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -70,7 +80,7 @@ fn entry_point() -> ! {
     });
 
     // --- USART2 Setup ---
-    {
+    let (rx_dma, _tx_dma) = {
         let tx = gpiod
             .pd5
             .into_alternate(&mut gpiod.moder, &mut gpiod.otyper, &mut gpiod.afrl);
@@ -79,7 +89,7 @@ fn entry_point() -> ! {
             .into_alternate(&mut gpiod.moder, &mut gpiod.otyper, &mut gpiod.afrl);
 
         let serial_cfg = stm32_hal::serial::Config::default().baudrate(115_200.bps());
-        let mut serial = stm32_hal::serial::Serial::usart2(
+        let serial = stm32_hal::serial::Serial::usart2(
             peripheral.USART2,
             (tx, rx),
             serial_cfg,
@@ -87,9 +97,32 @@ fn entry_point() -> ! {
             &mut rcc.apb1r1,
         );
 
-        serial.listen(stm32_hal::serial::Event::Rxne);
-        rprintln!("USART2 initialized for 115200 8N1.");
-    }
+        let (tx, rx) = serial.split();
+
+        let dma_channels = peripheral.DMA1.split(&mut rcc.ahb1);
+
+        let rx_dma = rx.with_dma(dma_channels.6);
+        let tx_dma = tx.with_dma(dma_channels.7);
+        (rx_dma, tx_dma)
+    };
+
+    rprintln!("Starting DMA-based UART RX...");
+
+    let buf: &'static mut [u8; 256] = UART_UMBILICAL_RX_BUF.init([0; 256]); // Initialize once at startup.
+    let mut rx_transfer = rx_dma.circ_read(buf);
+
+    // Enable FIFO mode and set RX FIFO threshold
+    // let usart2 = unsafe { &*stm32_hal::stm32::USART2::ptr() };
+    // usart2.cr1.modify(|_, w| w.fifoen().set_bit()); // Enable FIFO
+    // usart2.cr3.modify(|_, w| w.rxftie().set_bit()); // RX FIFO threshold interrupt
+    // usart2.cr3.modify(|_, w| w.rxftcfg().bits(0b010)); // 1/4 full threshold (for example)
+
+    // serial.listen(stm32_hal::serial::Event::Rxne);
+
+    // critical_section(|cs| {
+    //     PERIPHERAL_USART_2.borrow(cs).replace(Some(serial));
+    // });
+    rprintln!("USART2 initialized for 115200 8N1.");
 
     unsafe {
         NVIC::unmask(stm32_hal::stm32::Interrupt::USART2);
@@ -101,6 +134,8 @@ fn entry_point() -> ! {
     let mut i = 0u32;
     loop {
         toggle_led();
+
+        poll_uart_rx(&mut rx_transfer);
 
         // Periodically check for incoming commands
         process_uart_commands();
@@ -140,4 +175,25 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 #[cortex_m_rt::exception]
 unsafe fn HardFault(ef: &cortex_m_rt::ExceptionFrame) -> ! {
     panic!("{:#?}", ef);
+}
+
+// fn poll_uart_rx(rx_transfer: &CircBuffer<[u8; 256], dma::dma1::C6>) {
+fn poll_uart_rx(
+    rx_transfer: &mut stm32l4xx_hal::dma::CircBuffer<
+        [u8; 256],
+        stm32l4xx_hal::dma::RxDma<
+            stm32l4xx_hal::serial::Rx<stm32l4xx_hal::pac::USART2>,
+            stm32l4xx_hal::dma::dma1::C6,
+        >,
+    >,
+) {
+    let mut buf = [0; 256];
+    let xx = rx_transfer.read(&mut buf).unwrap();
+    // let (buf, pending) = rx_transfer.peek(|data, _| (data, 0));
+    // Process data[..pending]
+    for &b in buf.iter().take(xx) {
+        if b != 0 {
+            rprintln!("RX: {}", b);
+        }
+    }
 }
