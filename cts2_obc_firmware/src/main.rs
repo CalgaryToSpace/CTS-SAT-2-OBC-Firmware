@@ -16,17 +16,11 @@ use stm32l4xx_hal::{
     prelude::*,
 };
 
-mod tcmd_uart;
+mod umbilical_uart;
 
-use tcmd_uart::{process_uart_commands, send_uart2};
+use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
-type Usart2Serial = stm32_hal::serial::Serial<
-    stm32_hal::stm32::USART2,
-    (
-        stm32_hal::gpio::gpiod::PD5<stm32_hal::gpio::Alternate<PushPull, 7>>,
-        stm32_hal::gpio::gpiod::PD6<stm32_hal::gpio::Alternate<PushPull, 7>>,
-    ),
->;
+use crate::umbilical_uart::poll_uart_rx;
 
 static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
     Mutex::new(RefCell::new(None));
@@ -38,7 +32,7 @@ static PERIPHERAL_RCC: Mutex<RefCell<Option<stm32_hal::rcc::Rcc>>> = Mutex::new(
 static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
     Mutex::new(RefCell::new(None));
 
-static UART_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+static UART_DMA_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -80,7 +74,7 @@ fn entry_point() -> ! {
     });
 
     // --- USART2 Setup ---
-    let (rx_dma, _tx_dma) = {
+    let rx_dma = {
         let tx = gpiod
             .pd5
             .into_alternate(&mut gpiod.moder, &mut gpiod.otyper, &mut gpiod.afrl);
@@ -97,38 +91,25 @@ fn entry_point() -> ! {
             &mut rcc.apb1r1,
         );
 
-        let (tx, rx) = serial.split();
+        let (_tx, rx) = serial.split();
 
         let dma_channels = peripheral.DMA1.split(&mut rcc.ahb1);
 
-        let rx_dma = rx.with_dma(dma_channels.6);
-        let tx_dma = tx.with_dma(dma_channels.7);
-        (rx_dma, tx_dma)
+        rx.with_dma(dma_channels.6)
     };
 
     rprintln!("Starting DMA-based UART RX...");
-
-    let buf: &'static mut [u8; 256] = UART_UMBILICAL_RX_BUF.init([0; 256]); // Initialize once at startup.
-    let mut rx_transfer = rx_dma.circ_read(buf);
-
-    // Enable FIFO mode and set RX FIFO threshold
-    // let usart2 = unsafe { &*stm32_hal::stm32::USART2::ptr() };
-    // usart2.cr1.modify(|_, w| w.fifoen().set_bit()); // Enable FIFO
-    // usart2.cr3.modify(|_, w| w.rxftie().set_bit()); // RX FIFO threshold interrupt
-    // usart2.cr3.modify(|_, w| w.rxftcfg().bits(0b010)); // 1/4 full threshold (for example)
-
-    // serial.listen(stm32_hal::serial::Event::Rxne);
-
-    // critical_section(|cs| {
-    //     PERIPHERAL_USART_2.borrow(cs).replace(Some(serial));
-    // });
+    let mut rx_transfer = {
+        let buf: &'static mut [u8; 256] = UART_DMA_UMBILICAL_RX_BUF.init([0; 256]); // Initialize once at startup.
+        rx_dma.circ_read(buf)
+    };
     rprintln!("USART2 initialized for 115200 8N1.");
 
     unsafe {
         NVIC::unmask(stm32_hal::stm32::Interrupt::USART2);
     }
 
-    send_uart2(b"USART2 ready. Buffered RX active.\r\n");
+    send_umbilical_uart(b"USART2 ready. Buffered RX active.\r\n");
 
     // --- Main loop ---
     let mut i = 0u32;
@@ -138,11 +119,11 @@ fn entry_point() -> ! {
         poll_uart_rx(&mut rx_transfer);
 
         // Periodically check for incoming commands
-        process_uart_commands();
+        process_umbilical_commands();
 
         // Heartbeat message
         rprintln!("Heartbeat {}", i);
-        send_uart2(b"HEARTBEAT\r\n");
+        send_umbilical_uart(b"HEARTBEAT\r\n");
 
         timer_delay_ms(500_u16);
         i = i.wrapping_add(1);
@@ -175,25 +156,4 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 #[cortex_m_rt::exception]
 unsafe fn HardFault(ef: &cortex_m_rt::ExceptionFrame) -> ! {
     panic!("{:#?}", ef);
-}
-
-// fn poll_uart_rx(rx_transfer: &CircBuffer<[u8; 256], dma::dma1::C6>) {
-fn poll_uart_rx(
-    rx_transfer: &mut stm32l4xx_hal::dma::CircBuffer<
-        [u8; 256],
-        stm32l4xx_hal::dma::RxDma<
-            stm32l4xx_hal::serial::Rx<stm32l4xx_hal::pac::USART2>,
-            stm32l4xx_hal::dma::dma1::C6,
-        >,
-    >,
-) {
-    let mut buf = [0; 256];
-    let xx = rx_transfer.read(&mut buf).unwrap();
-    // let (buf, pending) = rx_transfer.peek(|data, _| (data, 0));
-    // Process data[..pending]
-    for &b in buf.iter().take(xx) {
-        if b != 0 {
-            rprintln!("RX: {}", b);
-        }
-    }
 }
