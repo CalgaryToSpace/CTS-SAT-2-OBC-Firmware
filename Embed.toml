@@ -1,0 +1,8 @@
+[default.general]
+chip = "STM32L4A6ZG"
+ 
+[default.rtt]
+enabled = true
+ 
+[default.reset]
+halt_afterwards = false
