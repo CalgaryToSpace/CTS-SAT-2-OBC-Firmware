@@ -14,6 +14,26 @@ cargo install cargo-binutils probe-rs-tools cargo-expand
 ```
 
 3. Open this repo in VS Code.
-4. To flash and run the firmware, run `cargo embed` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
+4. To flash and run the firmware, run `cargo embed --target thumbv7em-none-eabihf` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
 5. Observe logs coming from the STM32. Observe the green onboard LED blinking.
 
+
+## Command Quick Reference
+
+* Run tests on host machine:
+
+```sh
+cargo test -p cts2_obc_logic
+```
+
+* Build and flash firmware to the OBC:
+
+```sh
+cargo embed --target thumbv7em-none-eabihf
+```
+
+* Build, test, and flash firmware at once:
+
+```sh
+cargo test -p cts2_obc_logic && cargo embed --target thumbv7em-none-eabihf
+```

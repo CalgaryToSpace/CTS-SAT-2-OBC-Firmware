@@ -1,5 +1,3 @@
-//! Interrupt-driven USART echo example for STM32L4xx.
-
 #![no_std]
 #![no_main]
 
