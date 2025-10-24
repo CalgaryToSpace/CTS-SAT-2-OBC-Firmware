@@ -17,10 +17,10 @@ pub fn poll_uart_rx(
     >,
 ) {
     let mut buf = [0; 256];
-    let xx = rx_transfer.read(&mut buf).unwrap();
+    let buf_size = rx_transfer.read(&mut buf).unwrap();
     // let (buf, pending) = rx_transfer.peek(|data, _| (data, 0));
     // Process data[..pending]
-    for &b in buf.iter().take(xx) {
+    for &b in buf.iter().take(buf_size) {
         if b != 0 {
             rprintln!("RX: {}", b);
         }
