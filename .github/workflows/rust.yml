@@ -16,6 +16,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Update rustup
+      run: rustup update
+    - name: Add target
+      run: rustup target add thumbv7em-none-eabihf
+    - name: Add llvm-tools component
+      run: rustup component add llvm-tools
     - name: Build
       run: cargo build --target thumbv7em-none-eabihf
     - name: Run tests
