@@ -7,6 +7,10 @@ static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UAR
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
 static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
 
+/// Poll the UART RX DMA circular buffer and push received bytes into `UART_RX_BUF`.
+///
+/// This function should be called periodically to process incoming UART data, from the
+/// main superloop or similar.
 pub fn poll_uart_rx(
     rx_transfer: &mut stm32l4xx_hal::dma::CircBuffer<
         [u8; 256],
@@ -18,8 +22,8 @@ pub fn poll_uart_rx(
 ) {
     let mut buf = [0; 256];
     let buf_size = rx_transfer.read(&mut buf).unwrap();
-    // let (buf, pending) = rx_transfer.peek(|data, _| (data, 0));
-    // Process data[..pending]
+
+    // Process data[..pending].
     for &b in buf.iter().take(buf_size) {
         if b != 0 {
             rprintln!("RX: {}", b);
@@ -28,6 +32,7 @@ pub fn poll_uart_rx(
     }
 }
 
+/// Push a byte into `UART_RX_BUF` and update `UART_HEAD`.
 fn uart_push_byte(b: u8) {
     let head = UART_HEAD.load(Ordering::Relaxed);
     let next = (head + 1) % UART_BUF_SIZE;
@@ -39,6 +44,7 @@ fn uart_push_byte(b: u8) {
     }
 }
 
+/// If available, fetch a byte from `UART_RX_BUF`. Returns `None` if buffer is empty.
 fn uart_pop_byte() -> Option<u8> {
     let mut byte = None;
 
@@ -52,6 +58,7 @@ fn uart_pop_byte() -> Option<u8> {
     byte
 }
 
+/// Process commands received over the umbilical UART, from the `UART_RX_BUF`.
 pub fn process_umbilical_commands() {
     let mut cmd = [0u8; 64];
     let mut idx = 0;
@@ -88,6 +95,9 @@ fn handle_command(cmd: &str) {
     }
 }
 
+/// Send data over the umbilical UART (e.g., as a response to a command).
+///
+/// Blocks during transmission.
 pub fn send_umbilical_uart(data: &[u8]) {
     let usart2 = unsafe { &*stm32_hal::stm32::USART2::ptr() };
     for &b in data {
