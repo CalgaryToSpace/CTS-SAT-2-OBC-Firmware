@@ -13,5 +13,5 @@ cortex-m-rt = "0.7.5"
 nb = "1.1.0"
 panic-halt = "1.0.0"
 rtt-target = "0.6.1"
-
 stm32l4xx-hal = { version = "0.7.1", features = ["rt", "stm32l4a6"] }
+static_cell = "2.1.1"
