@@ -10,7 +10,7 @@ pub fn multiply_by_2(i: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn test_placeholder() {
