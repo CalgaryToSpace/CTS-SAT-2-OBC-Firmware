@@ -114,6 +114,15 @@ name = "cts2_obc_telecommands"
 version = "0.1.0"
 
 [[package]]
+name = "deranged"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
+dependencies = [
+ "powerfmt",
+]
+
+[[package]]
 name = "embedded-dma"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -163,6 +172,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 
 [[package]]
+name = "num-conv"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
 name = "panic-halt"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -173,6 +188,12 @@ name = "portable-atomic"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+
+[[package]]
+name = "powerfmt"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
 name = "proc-macro2"
@@ -265,9 +286,9 @@ dependencies = [
 
 [[package]]
 name = "stm32l4"
-version = "0.14.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c67adac30ec976cdc3cd1189cc0dd52c37db34c83083456f7fd8fc985d6706c0"
+checksum = "e96b3a8049dc4dc38e107d0750beb07a2420febde87708bb9180ad59e90faa87"
 dependencies = [
  "bare-metal 1.0.0",
  "cortex-m",
@@ -278,9 +299,9 @@ dependencies = [
 [[package]]
 name = "stm32l4xx-hal"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08b0f9e87e996030e3382b0f086429691ba61c5f594b65f45e76414246201d93"
+source = "git+https://github.com/DeflateAwning/stm32l4xx-hal.git?branch=fork-upgrade-pac-plus-l4r5#2825d981227938c68949b32f77cdf86e3ea9e24e"
 dependencies = [
+ "bitfield",
  "bxcan",
  "cast",
  "cortex-m",
@@ -291,6 +312,7 @@ dependencies = [
  "rand_core",
  "stable_deref_trait",
  "stm32l4",
+ "time",
  "void",
 ]
 
@@ -304,6 +326,24 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "time"
+version = "0.3.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91e7d9e3bb61134e77bde20dd4825b97c010155709965fedf0f49bb138e52a9d"
+dependencies = [
+ "deranged",
+ "num-conv",
+ "powerfmt",
+ "time-core",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40868e7c1d2f0b8d73e4a8c7f0ff63af4f6d19be117e90bd73eb1d62cf831c6b"
 
 [[package]]
 name = "ufmt-write"
