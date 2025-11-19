@@ -1,7 +1,7 @@
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_telecommands::Telecommand;
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
-
 const UART_BUF_SIZE: usize = 256;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
@@ -86,12 +86,35 @@ pub fn process_umbilical_commands() {
     }
 }
 
-fn handle_command(cmd: &str) {
+// Creating a more modular structure so that handling commands will be easier when we have more commands.
+// First I will parse the incoming string into a structured command, match on that strutured enum, and respond accordingly.
+// Command enum:
+
+fn parse_command(input: &str) -> Telecommand<'_> {
+    match input.trim() {
+        "PING" => Telecommand::Ping,
+        "LED ON" => Telecommand::LedOn,
+        "LED OFF" => Telecommand::LedOff,
+        other => Telecommand::Unknown(other),
+    }
+}
+
+//Not sure if we would want to make a different function to handle each separate command?
+fn handle_command(cmd_str: &str) {
+    let cmd = parse_command(cmd_str);
     match cmd {
-        "PING" => send_umbilical_uart(b"PONG\r\n"),
-        "LED ON" => send_umbilical_uart(b"LED ON\r\n"),
-        "LED OFF" => send_umbilical_uart(b"LED OFF\r\n"),
-        _ => send_umbilical_uart(b"ERR: Unknown command\r\n"),
+        Telecommand::Ping => send_umbilical_uart(b"PONG\r\n"),
+        Telecommand::LedOn => {
+            //We would eventually want a command like this to do meaningful things (like actually turn the LED on.)
+            send_umbilical_uart(b"LED ON\r\n");
+        }
+        Telecommand::LedOff => {
+            send_umbilical_uart(b"LED OFF\r\n");
+        }
+        Telecommand::Unknown(s) => {
+            send_umbilical_uart(b"ERR: unknown command\r\n");
+            rprintln!("Unknown command: {}", s);
+        }
     }
 }
 

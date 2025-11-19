@@ -95,6 +95,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "cts2_obc_logic",
+ "cts2_obc_telecommands",
  "nb 1.1.0",
  "panic-halt",
  "rtt-target",
