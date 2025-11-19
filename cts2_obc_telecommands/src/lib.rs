@@ -3,16 +3,14 @@
 #[cfg(test)]
 extern crate std;
 
-
 pub enum Telecommand {
     HelloWorld,
     Ping,
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn test_placeholder() {
