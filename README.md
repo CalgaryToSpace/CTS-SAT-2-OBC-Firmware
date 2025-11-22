@@ -21,7 +21,7 @@ cargo install cargo-binutils probe-rs-tools cargo-expand just
     * Connect RX to TX, TX to RX, GND to GND.
     * Google "nucleo-144 pinout" to find the UART2 pin locations.
     * Ask a friend for help!
-8. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud.
+8. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
     * You should see heartbeat messages every second.
 9. Try sending the "PING" command. You should receive a "PONG" response.
 
