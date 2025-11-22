@@ -3,11 +3,20 @@
 #[cfg(test)]
 extern crate std;
 
-pub enum Telecommand<'a> {
+//Telecommand Enum
+pub enum Telecommand {
     Ping,
     LedOn,
     LedOff,
-    Unknown(&'a str),
+}
+
+pub fn parse_command(input: &str) -> Result<Telecommand, ()> {
+    match input.trim() {
+        "PING" => Ok(Telecommand::Ping),
+        "LED ON" => Ok(Telecommand::LedOn),
+        "LED OFF" => Ok(Telecommand::LedOff),
+        _ => Err(()),
+    }
 }
 
 #[cfg(test)]
