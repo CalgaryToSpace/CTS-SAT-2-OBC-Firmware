@@ -1,8 +1,8 @@
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_telecommands::Telecommand;
-use cts2_obc_telecommands::parse_command;
+use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
+
 const UART_BUF_SIZE: usize = 256;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
@@ -76,7 +76,7 @@ pub fn process_umbilical_commands() {
                 if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
                     let trimmed = cmd_str.trim_end();
                     rprintln!("CMD: {}", trimmed);
-                    handle_command(trimmed);
+                    dispatch_command(trimmed);
                 }
                 idx = 0;
             }
@@ -87,19 +87,17 @@ pub fn process_umbilical_commands() {
     }
 }
 
-// Creating a more modular structure so that handling commands will be easier when we have more commands.
-// First I will parse the incoming string into a structured command, match on that strutured enum, and respond accordingly.
-
-//Not sure if we would want to make a different function to handle each separate command?
-fn handle_command(cmd_str: &str) -> Result<Telecommand, ()> {
-    let cmd = parse_command(cmd_str);
+// TODO: Make different functions to handle each separate command.
+// TODO: Fix the () error type to be enum or string
+// TODO: Replace with meaningful telecommands.
+fn dispatch_command(cmd_str: &str) -> Result<Telecommand, ()> {
+    let cmd = parse_telecommand(cmd_str);
     match cmd {
         Ok(Telecommand::Ping) => {
             send_umbilical_uart(b"PONG\r\n");
             Ok(Telecommand::Ping)
         }
         Ok(Telecommand::LedOn) => {
-            //We would eventually want a command like this to do meaningful things (like actually turn the LED on.)
             send_umbilical_uart(b"LED ON\r\n");
             Ok(Telecommand::LedOn)
         }
