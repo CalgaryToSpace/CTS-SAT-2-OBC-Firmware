@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 # Internal creates.
 cts2_obc_logic = { path = "../cts2_obc_logic" }
+cts2_obc_telecommands = { path = "../cts2_obc_telecommands" }
 
 # External crates.
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }

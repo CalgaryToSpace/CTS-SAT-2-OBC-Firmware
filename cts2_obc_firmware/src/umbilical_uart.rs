@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
@@ -75,7 +76,7 @@ pub fn process_umbilical_commands() {
                 if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
                     let trimmed = cmd_str.trim_end();
                     rprintln!("CMD: {}", trimmed);
-                    handle_command(trimmed);
+                    dispatch_command(trimmed);
                 }
                 idx = 0;
             }
@@ -86,12 +87,28 @@ pub fn process_umbilical_commands() {
     }
 }
 
-fn handle_command(cmd: &str) {
+// TODO: Make different functions to handle each separate command.
+// TODO: Fix the () error type to be enum or string
+// TODO: Replace with meaningful telecommands.
+fn dispatch_command(cmd_str: &str) -> Result<Telecommand, ()> {
+    let cmd = parse_telecommand(cmd_str);
     match cmd {
-        "PING" => send_umbilical_uart(b"PONG\r\n"),
-        "LED ON" => send_umbilical_uart(b"LED ON\r\n"),
-        "LED OFF" => send_umbilical_uart(b"LED OFF\r\n"),
-        _ => send_umbilical_uart(b"ERR: Unknown command\r\n"),
+        Ok(Telecommand::Ping) => {
+            send_umbilical_uart(b"PONG\r\n");
+            Ok(Telecommand::Ping)
+        }
+        Ok(Telecommand::LedOn) => {
+            send_umbilical_uart(b"LED ON\r\n");
+            Ok(Telecommand::LedOn)
+        }
+        Ok(Telecommand::LedOff) => {
+            send_umbilical_uart(b"LED OFF\r\n");
+            Ok(Telecommand::LedOff)
+        }
+        Err(e) => {
+            send_umbilical_uart(b"ERR: unknown command\r\n");
+            Err(e)
+        }
     }
 }
 
