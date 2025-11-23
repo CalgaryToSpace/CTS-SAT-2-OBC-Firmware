@@ -24,6 +24,9 @@ test:
     cargo test -p cts2_obc_logic
     cargo test -p cts2_obc_telecommands
 
+check:
+    cargo clippy --workspace --all-features -- -D warnings
+
 # Build, flash, and run firmware on the STM32.
 flash:
     cargo embed --target {{target}}

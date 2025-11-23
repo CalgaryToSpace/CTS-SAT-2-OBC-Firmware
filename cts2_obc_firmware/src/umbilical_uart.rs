@@ -13,11 +13,11 @@ static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
 /// This function should be called periodically to process incoming UART data, from the
 /// main superloop or similar.
 pub fn poll_uart_rx(
-    rx_transfer: &mut stm32l4xx_hal::dma::CircBuffer<
+    rx_transfer: &mut stm32_hal::dma::CircBuffer<
         [u8; 256],
-        stm32l4xx_hal::dma::RxDma<
-            stm32l4xx_hal::serial::Rx<stm32l4xx_hal::pac::USART2>,
-            stm32l4xx_hal::dma::dma1::C6,
+        stm32_hal::dma::RxDma<
+            stm32_hal::serial::Rx<stm32_hal::pac::USART2>,
+            stm32_hal::dma::dma1::C6,
         >,
     >,
 ) {
@@ -76,7 +76,10 @@ pub fn process_umbilical_commands() {
                 if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
                     let trimmed = cmd_str.trim_end();
                     rprintln!("CMD: {}", trimmed);
-                    dispatch_command(trimmed);
+                    match dispatch_command(trimmed) {
+                        Ok(_) => rprintln!("Command executed successfully"),
+                        Err(_) => rprintln!("Command execution failed"),
+                    }
                 }
                 idx = 0;
             }
@@ -90,20 +93,20 @@ pub fn process_umbilical_commands() {
 // TODO: Make different functions to handle each separate command.
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<Telecommand, ()> {
+fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
         Ok(Telecommand::Ping) => {
             send_umbilical_uart(b"PONG\r\n");
-            Ok(Telecommand::Ping)
+            Ok(())
         }
         Ok(Telecommand::LedOn) => {
             send_umbilical_uart(b"LED ON\r\n");
-            Ok(Telecommand::LedOn)
+            Ok(())
         }
         Ok(Telecommand::LedOff) => {
             send_umbilical_uart(b"LED OFF\r\n");
-            Ok(Telecommand::LedOff)
+            Ok(())
         }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
