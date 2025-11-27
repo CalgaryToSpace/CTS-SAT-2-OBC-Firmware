@@ -3,13 +3,10 @@
 #[cfg(test)]
 extern crate std;
 
-use cts2_obc_telecommands::Telecommand; // Sample include; use later.
-
-
+// TODO: Remove this placeholder function and add testable logic parts in here.
 pub fn multiply_by_2(i: u32) -> u32 {
     i * 2
 }
-
 
 #[cfg(test)]
 mod tests {
