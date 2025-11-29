@@ -23,7 +23,7 @@ cargo install cargo-binutils probe-rs-tools cargo-expand just
     * Ask a friend for help!
 8. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
     * You should see heartbeat messages every second.
-9. Try sending the "PING" command. You should receive a "PONG" response.
+9. Try sending the `hello_world()` command. You should receive a "HELLO_WORLD" response.
 
 
 ## Command Quick Reference
