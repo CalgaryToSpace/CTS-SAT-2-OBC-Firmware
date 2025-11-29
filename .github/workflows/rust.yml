@@ -2,27 +2,38 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-test:
-
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Update rustup
-      run: rustup update
-    - name: Add target
-      run: rustup target add thumbv7em-none-eabihf
-    - name: Add llvm-tools component
-      run: rustup component add llvm-tools
-    - name: Build
-      run: cargo build --target thumbv7em-none-eabihf
-    - name: Run tests
-      run: cargo test -p cts2_obc_logic
+      - uses: actions/checkout@v5
+
+      - name: Update rustup
+        run: rustup update
+
+      - name: Add target and llvm-tools component
+        run: |
+          rustup target add thumbv7em-none-eabihf
+          rustup component add llvm-tools
+
+      - name: Build
+        run: cargo build --target thumbv7em-none-eabihf
+
+      - name: Run tests
+        run: |
+          cargo test -p cts2_obc_logic
+          cargo test -p cts2_obc_telecommands
+
+      - name: Run Clippy (Linter)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Run fmt check
+        run: cargo fmt --all -- --check
