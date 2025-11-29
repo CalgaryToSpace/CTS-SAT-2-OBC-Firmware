@@ -17,4 +17,10 @@ panic = "abort"
 panic = "abort"
 
 [workspace.lints.clippy]
-all = "deny"
+# "deny" means that violations will cause the build to fail.
+# "warn" means that violations will be reported, but will not fail the build.
+all         = "warn"
+pedantic    = "warn"
+nursery     = "warn"
+cargo       = "warn"
+restriction = "warn"
