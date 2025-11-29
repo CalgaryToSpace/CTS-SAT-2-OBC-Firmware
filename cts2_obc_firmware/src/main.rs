@@ -16,10 +16,12 @@ use stm32l4xx_hal::{
     prelude::*,
 };
 
+mod telecommand_implementation;
 mod umbilical_uart;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
+use crate::umbilical_uart::MAX_TELECOMMAND_STR_LENGTH;
 use crate::umbilical_uart::poll_uart_rx;
 
 static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
@@ -100,7 +102,8 @@ fn entry_point() -> ! {
 
     rprintln!("Starting DMA-based UART RX...");
     let mut rx_transfer = {
-        let buf: &'static mut [u8; 256] = UART_DMA_UMBILICAL_RX_BUF.init([0; 256]); // Initialize once at startup.
+        let buf: &'static mut [u8; MAX_TELECOMMAND_STR_LENGTH] =
+            UART_DMA_UMBILICAL_RX_BUF.init([0; MAX_TELECOMMAND_STR_LENGTH]); // Initialize once at startup.
         rx_dma.circ_read(buf)
     };
     rprintln!("USART2 initialized for 115200 8N1.");
