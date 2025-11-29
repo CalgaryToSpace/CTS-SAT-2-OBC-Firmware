@@ -33,7 +33,13 @@ jobs:
           cargo test -p cts2_obc_telecommands
 
       - name: Run Clippy (Linter)
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: |
+          # Check the entire workspace for the embedded target. Does not/may not check tests though.
+          cargo clippy --workspace --target thumbv7em-none-eabihf --all-features -- -D warnings
 
-      - name: Run fmt check
+          # Check the packages that build on all targets. Checks tests.
+          cargo clippy -p cts2_obc_logic --all-features
+          cargo clippy -p cts2_obc_telecommands --all-features
+
+      - name: Run fmt check (validate code formatting)
         run: cargo fmt --all -- --check

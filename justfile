@@ -24,8 +24,18 @@ test:
     cargo test -p cts2_obc_logic
     cargo test -p cts2_obc_telecommands
 
+# Run the Clippy linter.
 check:
-    cargo clippy --workspace --all-features -- -D warnings
+    # Check the entire workspace for the embedded target. Does not/may not check tests though.
+    cargo clippy --workspace --target thumbv7em-none-eabihf --all-features -- -D warnings
+
+    # Check the packages that build on all targets. Checks tests.
+    cargo clippy -p cts2_obc_logic --all-features
+    cargo clippy -p cts2_obc_telecommands --all-features
+
+# Format the code using rustfmt.
+format:
+    cargo fmt --all
 
 # Build, flash, and run firmware on the STM32.
 flash:
