@@ -1,6 +1,10 @@
 # CTS-SAT-2-OBC-Firmware
 Firmware for the CTS-SAT-2 mission. Runs on the STM32L4R5ZI-based Onboard Computer. 
 
+## Documentation
+https://www.st.com/resource/en/user_manual/um2179-stm32-nucleo144-boards-mb1312-stmicroelectronics.pdf
+1. page 33 - pinouts
+
 ## Getting Started
 
 1. [Install Rust](https://rust-lang.org/tools/install/). It must be installed using `rustup`.
