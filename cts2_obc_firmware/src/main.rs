@@ -15,6 +15,19 @@ use stm32l4xx_hal::{
     gpio::{Output, PushPull, gpioc::PC7},
     prelude::*,
 };
+// SPI traits + pin traits from the HAL's re-exported embedded-hal
+use stm32_hal::hal::blocking::spi::{Transfer, Write};
+use stm32_hal::hal::digital::v2::OutputPin;
+use stm32_hal::hal::spi::{Mode, Phase, Polarity};
+
+// STM32L4 SPI peripheral type
+use stm32_hal::spi::Spi;
+
+
+
+
+
+
 
 mod umbilical_uart;
 
@@ -33,6 +46,10 @@ static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
     Mutex::new(RefCell::new(None));
 
 static UART_DMA_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+
+const CMD_RESET: u8   = 0xFF; // RESET command from datasheet
+const CMD_READ_ID: u8 = 0x9F; // READ ID command from datasheet
+
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -60,12 +77,58 @@ fn entry_point() -> ! {
 
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
-    // --- GPIO ---
-    let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
-    let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
-    let led = gpioc
-        .pc7
-        .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
+// --- GPIO ---
+let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
+let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
+let mut gpioa = peripheral.GPIOA.split(&mut rcc.ahb2);
+// (Only add GPIOB if you actually use it; can be removed otherwise.)
+
+let led = gpioc
+    .pc7
+    .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
+
+// SPI1 pins on Arduino headers, Nucleo-L4R5ZI mapping:
+// D13 = PA5 = SCK
+// D12 = PA6 = MISO
+// D11 = PA7 = MOSI
+let sck = gpioa
+    .pa5
+    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+let miso = gpioa
+    .pa6
+    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+let mosi = gpioa
+    .pa7
+    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+
+// Chip select on D10 = PD14
+let mut nand_cs = gpiod
+    .pd14
+    .into_push_pull_output(&mut gpiod.moder, &mut gpiod.otyper);
+nand_cs.set_high(); // idle high (chip not selected)
+
+
+
+
+    let spi_mode = Mode {
+        polarity: Polarity::IdleLow,                 // SPI mode 0
+        phase: Phase::CaptureOnFirstTransition,
+    };
+
+    let mut spi1 = Spi::spi1(
+        peripheral.SPI1,
+        (sck, miso, mosi),
+        spi_mode,
+        10.MHz(),
+        clocks,
+        &mut rcc.apb2,
+    );
+
+    rprintln!("SPI1 configured for NAND.");
+
+    // Probe the NAND
+    test_nand(&mut spi1, &mut nand_cs);
+
 
     // --- Move peripherals into global statics ---
     critical_section(|cs| {
@@ -129,6 +192,53 @@ fn entry_point() -> ! {
         i = i.wrapping_add(1);
     }
 }
+// testing nand 
+fn test_nand<SPI, CS, E>(spi: &mut SPI, cs: &mut CS)
+where
+    SPI: Write<u8, Error = E> + Transfer<u8, Error = E>,
+    CS: OutputPin,
+{
+    rprintln!("Starting NAND test...");
+
+    // ----- RESET -----
+    // Pull CS low to select the chip
+    cs.set_low();
+    // Send single-byte RESET command 0xFF
+    if let Err(_) = spi.write(&[CMD_RESET]) {
+        rprintln!("SPI write failed (RESET)");
+    }
+    // Release the chip
+    cs.set_high();
+
+    // Wait for NAND to finish internal reset (tRST)
+    // This is a crude busy-wait: number is "cycles at CPU clock"
+    cortex_m::asm::delay(64_0000); // ≈10 ms at 64 MHz
+
+   // ----- READ ID -----
+let mut buf = [CMD_READ_ID, 0x00, 0x00, 0x00, 0x00, 0x00];
+//             cmd       dummy  b2   b3   b4   b5
+
+cs.set_low();
+let res = spi.transfer(&mut buf); // full-duplex
+cs.set_high();
+
+match res {
+    Ok(rx) => {
+        rprintln!(
+            "RAW RX: {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
+            rx[0], rx[1], rx[2], rx[3], rx[4], rx[5]
+        );
+        let mfr = rx[2];
+        let dev = rx[3];
+        rprintln!("NAND ID Response: MFR=0x{:02X}, DEV=0x{:02X}", mfr, dev);
+    }
+    Err(_) => {
+        rprintln!("SPI transfer failed (READ ID)");
+    }
+}
+
+}
+
 
 fn toggle_led() {
     critical_section(|cs| {
