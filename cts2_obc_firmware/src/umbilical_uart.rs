@@ -102,8 +102,8 @@ pub fn process_umbilical_commands() {
 fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
-        Ok(Telecommand::HelloWorld) => run_hello_world_telecommand(),
-        Ok(Telecommand::DemoCommandWithArguments(args)) => {
+        Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
+        Ok(Telecommand::demo_command_with_arguments(args)) => {
             crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
         }
         Err(e) => {
