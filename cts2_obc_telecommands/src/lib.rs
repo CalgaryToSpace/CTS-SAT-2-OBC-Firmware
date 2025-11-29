@@ -17,9 +17,10 @@ pub struct DemoCommandWithArgumentsArgs {
 }
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
-    HelloWorld,
-    DemoCommandWithArguments(DemoCommandWithArgumentsArgs),
+    hello_world,
+    demo_command_with_arguments(DemoCommandWithArgumentsArgs),
 }
 
 // TODO: Replace with meaningful telecommands
@@ -38,12 +39,12 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
         .trim();
 
     match command_name.trim() {
-        "hello_world" => Ok(Telecommand::HelloWorld),
+        "hello_world" => Ok(Telecommand::hello_world),
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
                     .map_err(|_| ())?;
-            Ok(Telecommand::DemoCommandWithArguments(args))
+            Ok(Telecommand::demo_command_with_arguments(args))
         }
         _ => Err(()),
     }
@@ -62,11 +63,11 @@ mod tests {
     fn test_parse_telecommand_valid() {
         assert!(matches!(
             parse_telecommand("hello_world()"),
-            Ok(Telecommand::HelloWorld)
+            Ok(Telecommand::hello_world)
         ));
         assert!(matches!(
             parse_telecommand(" hello_world() "),
-            Ok(Telecommand::HelloWorld)
+            Ok(Telecommand::hello_world)
         ));
         assert!(matches!(
             parse_telecommand(
@@ -79,7 +80,7 @@ mod tests {
                     "arg_nullable_u32": null
                 })"#
             ),
-            Ok(Telecommand::DemoCommandWithArguments(
+            Ok(Telecommand::demo_command_with_arguments(
                 DemoCommandWithArgumentsArgs {
                     arg_u32: 1,
                     arg_u64: 2,
@@ -134,12 +135,12 @@ mod tests {
         let result = parse_telecommand(&command_str);
         assert!(matches!(
             result,
-            Ok(Telecommand::DemoCommandWithArguments(_))
+            Ok(Telecommand::demo_command_with_arguments(_))
         ));
 
         // Validate the parts inside the struct.
         assert!(
-            if let Ok(Telecommand::DemoCommandWithArguments(args)) = result {
+            if let Ok(Telecommand::demo_command_with_arguments(args)) = result {
                 args.arg_u32 == 123
                     && args.arg_u64 == 45678901234
                     && args.arg_bool == true
