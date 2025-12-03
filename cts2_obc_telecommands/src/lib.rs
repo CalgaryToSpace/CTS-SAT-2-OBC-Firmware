@@ -23,7 +23,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{Telecommand, parse_telecommand};
 
     #[test]
     fn test_placeholder() {
