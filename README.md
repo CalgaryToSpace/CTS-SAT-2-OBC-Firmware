@@ -2,7 +2,6 @@
 Firmware for the CTS-SAT-2 mission. Runs on the STM32L4R5ZI-based Onboard Computer. 
 
 ## Getting Started
-
 1. [Install Rust](https://rust-lang.org/tools/install/). It must be installed using `rustup`.
 2. Install the required dependencies for embedded rust development.
 
@@ -25,6 +24,9 @@ cargo install cargo-binutils probe-rs-tools cargo-expand just
     * You should see heartbeat messages every second.
 9. Try sending the "PING" command. You should receive a "PONG" response.
 
+### Resources
+- [STM32 Nucleo-144 Boards User Manual (UM2179)](https://www.st.com/resource/en/user_manual/um2179-stm32-nucleo144-boards-mb1312-stmicroelectronics.pdf)
+  - Page 33 — Pinouts
 
 ## Command Quick Reference
 
