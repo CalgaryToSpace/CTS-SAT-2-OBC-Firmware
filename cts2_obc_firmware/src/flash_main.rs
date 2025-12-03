@@ -9,7 +9,7 @@ use stm32_hal::hal::digital::v2::OutputPin;
 
 const CMD_RESET: u8   = 0xFF;
 const CMD_READ_ID: u8 = 0x9F;
-
+const CMD_READ_PAGE: u8 = 0x13;
 /// Simple NAND driver that owns an SPI bus + chip-select pin.
 pub struct Nand<SPI, CS> {
     spi: SPI,
@@ -31,18 +31,8 @@ where
     pub fn read_id(&mut self) {
         rprintln!("Starting NAND READ ID...");
 
-        // ----- RESET -----
-        let _ = self.cs.set_low();
-        if let Err(_) = self.spi.write(&[CMD_RESET]) {
-            rprintln!("SPI write failed (RESET)");
-        }
-        let _ = self.cs.set_high();
-
-        // Wait for NAND to finish internal reset (tRST)
-        cortex_m::asm::delay(64_0000); // ≈10 ms at 64 MHz
-
         // ----- READ ID -----
-        let mut buf = [CMD_READ_ID, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let mut buf = [CMD_READ_ID, 0x00];
 
         let _ = self.cs.set_low();
         let res = self.spi.transfer(&mut buf);
@@ -63,8 +53,18 @@ where
             }
         }
     }
+    pub fn reset(&mut self){
+        // ----- RESET -----
+        let _ = self.cs.set_low();
+        if let Err(_) = self.spi.write(&[CMD_RESET]) {
+            rprintln!("SPI write failed (RESET)");
+        }
+        let _ = self.cs.set_high();
 
-    /// Optional: get SPI + CS back if you ever need them.
+        cortex_m::asm::delay(64_0000); 
+    }
+
+
     pub fn free(self) -> (SPI, CS) {
         (self.spi, self.cs)
     }
