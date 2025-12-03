@@ -3,6 +3,8 @@
 
 extern crate cortex_m;
 
+
+
 use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
 use cortex_m::interrupt::free as critical_section;
@@ -18,17 +20,17 @@ use stm32l4xx_hal::{
 // SPI traits + pin traits from the HAL's re-exported embedded-hal
 use stm32_hal::hal::blocking::spi::{Transfer, Write};
 use stm32_hal::hal::digital::v2::OutputPin;
+
+// ---- ADDED IMPORTS FOR SPI + MODE ----
+use stm32_hal::spi::Spi;
 use stm32_hal::hal::spi::{Mode, Phase, Polarity};
 
-// STM32L4 SPI peripheral type
-use stm32_hal::spi::Spi;
 
 
 
 
 
-
-
+mod flash_main;
 mod umbilical_uart;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
@@ -81,41 +83,37 @@ fn entry_point() -> ! {
 let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
 let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
 let mut gpioa = peripheral.GPIOA.split(&mut rcc.ahb2);
-// (Only add GPIOB if you actually use it; can be removed otherwise.)
+// let mut gpiob = peripheral.GPIOB.split(&mut rcc.ahb2);
+
 
 let led = gpioc
     .pc7
     .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
 
-// SPI1 pins on Arduino headers, Nucleo-L4R5ZI mapping:
-// D13 = PA5 = SCK
-// D12 = PA6 = MISO
-// D11 = PA7 = MOSI
-let sck = gpioa
-    .pa5
-    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-let miso = gpioa
-    .pa6
-    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-let mosi = gpioa
-    .pa7
-    .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    // ---- ADDED: NAND SPI + CS SETUP ----
+    // SPI1 pins on Nucleo-L4R5ZI:
+    // PA5 = SCK, PA6 = MISO, PA7 = MOSI
+    let sck = gpioa
+        .pa5
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    let miso = gpioa
+        .pa6
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    let mosi = gpioa
+        .pa7
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
 
-// Chip select on D10 = PD14
-let mut nand_cs = gpiod
-    .pd14
-    .into_push_pull_output(&mut gpiod.moder, &mut gpiod.otyper);
-nand_cs.set_high(); // idle high (chip not selected)
-
-
-
+    // Chip select on PD14
+    let nand_cs = gpiod
+        .pd14
+        .into_push_pull_output(&mut gpiod.moder, &mut gpiod.otyper);
 
     let spi_mode = Mode {
-        polarity: Polarity::IdleLow,                 // SPI mode 0
+        polarity: Polarity::IdleLow,
         phase: Phase::CaptureOnFirstTransition,
     };
 
-    let mut spi1 = Spi::spi1(
+    let spi1 = Spi::spi1(
         peripheral.SPI1,
         (sck, miso, mosi),
         spi_mode,
@@ -126,8 +124,9 @@ nand_cs.set_high(); // idle high (chip not selected)
 
     rprintln!("SPI1 configured for NAND.");
 
-    // Probe the NAND
-    test_nand(&mut spi1, &mut nand_cs);
+    // Create NAND driver and read ID once at startup
+    let mut nand = flash_main::Nand::new(spi1, nand_cs);
+    nand.read_id();
 
 
     // --- Move peripherals into global statics ---
@@ -192,53 +191,6 @@ nand_cs.set_high(); // idle high (chip not selected)
         i = i.wrapping_add(1);
     }
 }
-// testing nand 
-fn test_nand<SPI, CS, E>(spi: &mut SPI, cs: &mut CS)
-where
-    SPI: Write<u8, Error = E> + Transfer<u8, Error = E>,
-    CS: OutputPin,
-{
-    rprintln!("Starting NAND test...");
-
-    // ----- RESET -----
-    // Pull CS low to select the chip
-    cs.set_low();
-    // Send single-byte RESET command 0xFF
-    if let Err(_) = spi.write(&[CMD_RESET]) {
-        rprintln!("SPI write failed (RESET)");
-    }
-    // Release the chip
-    cs.set_high();
-
-    // Wait for NAND to finish internal reset (tRST)
-    // This is a crude busy-wait: number is "cycles at CPU clock"
-    cortex_m::asm::delay(64_0000); // ≈10 ms at 64 MHz
-
-   // ----- READ ID -----
-let mut buf = [CMD_READ_ID, 0x00, 0x00, 0x00, 0x00, 0x00];
-//             cmd       dummy  b2   b3   b4   b5
-
-cs.set_low();
-let res = spi.transfer(&mut buf); // full-duplex
-cs.set_high();
-
-match res {
-    Ok(rx) => {
-        rprintln!(
-            "RAW RX: {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
-            rx[0], rx[1], rx[2], rx[3], rx[4], rx[5]
-        );
-        let mfr = rx[2];
-        let dev = rx[3];
-        rprintln!("NAND ID Response: MFR=0x{:02X}, DEV=0x{:02X}", mfr, dev);
-    }
-    Err(_) => {
-        rprintln!("SPI transfer failed (READ ID)");
-    }
-}
-
-}
-
 
 fn toggle_led() {
     critical_section(|cs| {
