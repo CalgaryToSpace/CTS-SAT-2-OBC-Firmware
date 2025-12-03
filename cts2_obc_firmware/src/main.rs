@@ -3,6 +3,8 @@
 
 extern crate cortex_m;
 
+
+
 use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
 use cortex_m::interrupt::free as critical_section;
@@ -15,7 +17,20 @@ use stm32l4xx_hal::{
     gpio::{Output, PushPull, gpioc::PC7},
     prelude::*,
 };
+// SPI traits + pin traits from the HAL's re-exported embedded-hal
+use stm32_hal::hal::blocking::spi::{Transfer, Write};
+use stm32_hal::hal::digital::v2::OutputPin;
 
+// ---- ADDED IMPORTS FOR SPI + MODE ----
+use stm32_hal::spi::Spi;
+use stm32_hal::hal::spi::{Mode, Phase, Polarity};
+
+
+
+
+
+
+mod flash_main;
 mod umbilical_uart;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
@@ -33,6 +48,10 @@ static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
     Mutex::new(RefCell::new(None));
 
 static UART_DMA_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+
+const CMD_RESET: u8   = 0xFF; // RESET command from datasheet
+const CMD_READ_ID: u8 = 0x9F; // READ ID command from datasheet
+
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -60,12 +79,55 @@ fn entry_point() -> ! {
 
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
-    // --- GPIO ---
-    let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
-    let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
-    let led = gpioc
-        .pc7
-        .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
+// --- GPIO ---
+let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
+let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
+let mut gpioa = peripheral.GPIOA.split(&mut rcc.ahb2);
+// let mut gpiob = peripheral.GPIOB.split(&mut rcc.ahb2);
+
+
+let led = gpioc
+    .pc7
+    .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
+
+    // ---- ADDED: NAND SPI + CS SETUP ----
+    // SPI1 pins on Nucleo-L4R5ZI:
+    // PA5 = SCK, PA6 = MISO, PA7 = MOSI
+    let sck = gpioa
+        .pa5
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    let miso = gpioa
+        .pa6
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    let mosi = gpioa
+        .pa7
+        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+
+    // Chip select on PD14
+    let nand_cs = gpiod
+        .pd14
+        .into_push_pull_output(&mut gpiod.moder, &mut gpiod.otyper);
+
+    let spi_mode = Mode {
+        polarity: Polarity::IdleLow,
+        phase: Phase::CaptureOnFirstTransition,
+    };
+
+    let spi1 = Spi::spi1(
+        peripheral.SPI1,
+        (sck, miso, mosi),
+        spi_mode,
+        10.MHz(),
+        clocks,
+        &mut rcc.apb2,
+    );
+
+    rprintln!("SPI1 configured for NAND.");
+
+    // Create NAND driver and read ID once at startup
+    let mut nand = flash_main::Nand::new(spi1, nand_cs);
+    nand.read_id();
+
 
     // --- Move peripherals into global statics ---
     critical_section(|cs| {
