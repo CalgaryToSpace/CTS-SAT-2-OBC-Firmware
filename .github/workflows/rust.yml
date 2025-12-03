@@ -2,27 +2,44 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Update rustup
-      run: rustup update
-    - name: Add target
-      run: rustup target add thumbv7em-none-eabihf
-    - name: Add llvm-tools component
-      run: rustup component add llvm-tools
-    - name: Build
-      run: cargo build --target thumbv7em-none-eabihf
-    - name: Run tests
-      run: cargo test -p cts2_obc_logic
+      - uses: actions/checkout@v5
+
+      - name: Update rustup
+        run: rustup update
+
+      - name: Add target and llvm-tools component
+        run: |
+          rustup target add thumbv7em-none-eabihf
+          rustup component add llvm-tools
+
+      - name: Build
+        run: cargo build --target thumbv7em-none-eabihf
+
+      - name: Run tests
+        run: |
+          cargo test -p cts2_obc_logic
+          cargo test -p cts2_obc_telecommands
+
+      - name: Run Clippy (Linter)
+        run: |
+          # Check the entire workspace for the embedded target. Does not/may not check tests though.
+          cargo clippy --workspace --target thumbv7em-none-eabihf --all-features -- -D warnings
+
+          # Check the packages that build on all targets. Checks tests.
+          cargo clippy -p cts2_obc_logic --all-features
+          cargo clippy -p cts2_obc_telecommands --all-features
+
+      - name: Run fmt check (validate code formatting)
+        run: cargo fmt --all -- --check
