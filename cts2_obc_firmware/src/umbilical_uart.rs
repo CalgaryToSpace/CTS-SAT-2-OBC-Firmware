@@ -1,3 +1,5 @@
+use crate::get_sys_uptime_ms;
+use core::fmt::{Error, Write};
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
@@ -13,6 +15,41 @@ const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
 static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
+
+struct CustomCharBuffer {
+    size: u8,
+    char_buf: [u8; 128],
+}
+
+impl CustomCharBuffer {
+    fn new() -> Self {
+        CustomCharBuffer {
+            size: 0,
+            char_buf: [0; 128],
+        }
+    }
+}
+
+impl Write for CustomCharBuffer {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for c in s.chars() {
+            match self.write_char(c) {
+                Ok(()) => {}
+                Err(Error) => return Err(Error),
+            }
+        }
+        Ok(())
+    }
+
+    fn write_char(&mut self, c: char) -> core::fmt::Result {
+        self.char_buf[self.size as usize] = c as u8;
+        self.size += 1;
+        if self.size >= self.char_buf.len() as u8 {
+            return Err(Error);
+        }
+        Ok(())
+    }
+}
 
 /// Poll the UART RX DMA circular buffer and push received bytes into `UART_RX_BUF`.
 ///
@@ -105,6 +142,13 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
         Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
         Ok(Telecommand::demo_command_with_arguments(args)) => {
             crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
+        }
+        Ok(Telecommand::GetSysUptime) => {
+            let mut buff = CustomCharBuffer::new();
+            let sys_time = get_sys_uptime_ms();
+            core::write!(&mut buff, "System Uptime: {} ms\r\n", sys_time).unwrap();
+            send_umbilical_uart(&buff.char_buf);
+            Ok(Telecommand::GetSysUptime)
         }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
