@@ -10,11 +10,11 @@ rustup update
 rustup target add thumbv7em-none-eabihf
 rustup component add llvm-tools
 cargo install cargo-binutils probe-rs-tools cargo-expand just
-```   
-3. Install [SerialTest](https://github.com/wh201906/SerialTest/releases) or a similar serial terminal tool (must allow pre-rewriting a message before sending).
+```
+3. Install [SerialTest](https://github.com/wh201906/SerialTest/releases) or a similar serial terminal tool (must allow pre-writing a message before sending).
 4. **[FOR WINDOWS USERS ONLY]**  Follow this link to install the [ST-Link Debugging Driver](https://www.st.com/en/development-tools/stsw-link009.html) for compataiblity with OpenOCD if not already installed.
    * Follow the instructions on the page to download latest.
-   * Unzip the downloaded file and follow instructions on the readME
+   * Unzip the downloaded file and follow instructions in the readme (inside the zip file).
 5. Open this repo in VS Code.
 6. To flash and run the firmware, run `cargo embed --target thumbv7em-none-eabihf` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
 7. Observe logs coming from the STM32. Observe the green onboard LED blinking and logs in the debug terminal.
