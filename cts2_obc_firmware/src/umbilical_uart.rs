@@ -3,7 +3,13 @@ use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-const UART_BUF_SIZE: usize = 256;
+use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+
+/// Maximum length of a telecommand string received over the umbilical UART.
+/// Includes the length of the command name, arguments, terminating newline, etc.
+pub const MAX_TELECOMMAND_STR_LENGTH: usize = 256;
+
+const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
 static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
@@ -14,14 +20,14 @@ static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
 /// main superloop or similar.
 pub fn poll_uart_rx(
     rx_transfer: &mut stm32_hal::dma::CircBuffer<
-        [u8; 256],
+        [u8; MAX_TELECOMMAND_STR_LENGTH],
         stm32_hal::dma::RxDma<
             stm32_hal::serial::Rx<stm32_hal::pac::USART2>,
             stm32_hal::dma::dma1::C6,
         >,
     >,
 ) {
-    let mut buf = [0; 256];
+    let mut buf = [0; MAX_TELECOMMAND_STR_LENGTH];
     let buf_size = rx_transfer.read(&mut buf).unwrap();
 
     // Process data[..pending].
@@ -61,7 +67,7 @@ fn uart_pop_byte() -> Option<u8> {
 
 /// Process commands received over the umbilical UART, from the `UART_RX_BUF`.
 pub fn process_umbilical_commands() {
-    let mut cmd = [0u8; 64];
+    let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
     let mut idx = 0;
 
     rprintln!(
@@ -96,17 +102,9 @@ pub fn process_umbilical_commands() {
 fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
-        Ok(Telecommand::Ping) => {
-            send_umbilical_uart(b"PONG\r\n");
-            Ok(())
-        }
-        Ok(Telecommand::LedOn) => {
-            send_umbilical_uart(b"LED ON\r\n");
-            Ok(())
-        }
-        Ok(Telecommand::LedOff) => {
-            send_umbilical_uart(b"LED OFF\r\n");
-            Ok(())
+        Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
+        Ok(Telecommand::demo_command_with_arguments(args)) => {
+            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
         }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
