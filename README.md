@@ -24,7 +24,7 @@ cargo install cargo-binutils probe-rs-tools cargo-expand just
     * Ask a friend for help!
 9. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
     * You should see heartbeat messages every second.
-10. Try sending the "PING" command. You should receive a "PONG" response.
+10. Try sending the `hello_world()` command. You should receive a "HELLO_WORLD" response.
 
 ### Resources
 - [STM32 Nucleo-144 Boards User Manual (UM2179)](https://www.st.com/resource/en/user_manual/um2179-stm32-nucleo144-boards-mb1312-stmicroelectronics.pdf)
