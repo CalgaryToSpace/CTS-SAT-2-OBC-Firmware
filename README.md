@@ -12,7 +12,7 @@ rustup component add llvm-tools
 cargo install cargo-binutils probe-rs-tools cargo-expand just
 ```   
 3. Install [SerialTest](https://github.com/wh201906/SerialTest/releases) or a similar serial terminal tool (must allow pre-rewriting a message before sending).
-4. [** FOR WINDOWS USERS ONLY ** ] Follow this link to install the [ST-Link Debugging Driver](https://www.st.com/en/development-tools/stsw-link009.html) for compataiblity with OpenOCD if not already installed.
+4. ** [FOR WINDOWS USERS ONLY] **  Follow this link to install the [ST-Link Debugging Driver](https://www.st.com/en/development-tools/stsw-link009.html) for compataiblity with OpenOCD if not already installed.
    * Follow the instructions on the page to download latest.
    * Unzip the downloaded file and follow instructions on the readME
 5. Open this repo in VS Code.
