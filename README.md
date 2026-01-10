@@ -2,7 +2,6 @@
 Firmware for the CTS-SAT-2 mission. Runs on the STM32L4R5ZI-based Onboard Computer. 
 
 ## Getting Started
-
 1. [Install Rust](https://rust-lang.org/tools/install/). It must be installed using `rustup`.
 2. Install the required dependencies for embedded rust development.
 
@@ -13,18 +12,23 @@ rustup component add llvm-tools
 cargo install cargo-binutils probe-rs-tools cargo-expand just
 ```
 3. Install [SerialTest](https://github.com/wh201906/SerialTest/releases) or a similar serial terminal tool (must allow pre-rewriting a message before sending).
-
-4. Open this repo in VS Code.
-5. To flash and run the firmware, run `cargo embed --target thumbv7em-none-eabihf` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
-6. Observe logs coming from the STM32. Observe the green onboard LED blinking and logs in the debug terminal.
-7. Disconnect power. Connect the USB-UART converter to the OBC's UART2 port.
+4. **[FOR WINDOWS USERS ONLY]**  Follow this link to install the [ST-Link Debugging Driver](https://www.st.com/en/development-tools/stsw-link009.html) for compataiblity with OpenOCD if not already installed.
+   * Follow the instructions on the page to download latest.
+   * Unzip the downloaded file and follow instructions in the readme (inside the zip file).
+5. Open this repo in VS Code.
+6. To flash and run the firmware, run `cargo embed --target thumbv7em-none-eabihf` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
+7. Observe logs coming from the STM32. Observe the green onboard LED blinking and logs in the debug terminal.
+8. Disconnect power. Connect the USB-UART converter to the OBC's UART2 port.
     * Connect RX to TX, TX to RX, GND to GND. RXD pin on the STM is pin PD6, and TXD pin on the STM is pin PD5. All GND's on the STM can be used.
     * Google "nucleo-144 pinout" to find the UART2 pin locations.
     * Ask a friend for help!
-8. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
+9. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
     * You should see heartbeat messages every second.
-9. Try sending the "PING" command. You should receive a "PONG" response.
+10. Try sending the `hello_world()` command. You should receive a "HELLO_WORLD" response.
 
+### Resources
+- [STM32 Nucleo-144 Boards User Manual (UM2179)](https://www.st.com/resource/en/user_manual/um2179-stm32-nucleo144-boards-mb1312-stmicroelectronics.pdf)
+  - Page 33 — Pinouts
 
 ## Command Quick Reference
 
