@@ -9,10 +9,14 @@ use cortex_m::interrupt::free as critical_section;
 use cortex_m::peripheral::NVIC;
 use rtt_target::{rprintln, rtt_init_print};
 use static_cell::StaticCell;
+use stm32_hal::hal::blocking::spi::{Transfer, Write};
+use stm32_hal::hal::digital::v2::OutputPin;
+use stm32_hal::hal::spi::{Mode, Phase, Polarity};
+use stm32_hal::spi::Spi;
 use stm32l4xx_hal::{
     self as stm32_hal,
     dma::CircReadDma as _,
-    gpio::{Output, PushPull, gpioc::PC7},
+    gpio::{Output, PushPull, gpioc::PC7, gpiod::PD14},
     prelude::*,
 };
 // SPI traits + pin traits from the HAL's re-exported embedded-hal
@@ -25,6 +29,8 @@ use stm32_hal::spi::Spi;
 
 mod flash_main;
 mod telecommand_implementation;
+// importing files
+mod external_nand_flash_driver;
 mod umbilical_uart;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
@@ -44,8 +50,31 @@ static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
 
 static UART_DMA_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
 
-const CMD_RESET: u8 = 0xFF; // RESET command from datasheet
-const CMD_READ_ID: u8 = 0x9F; // READ ID command from datasheet
+type nand_spi_type = Spi<
+    stm32l4xx_hal::pac::SPI1,
+    (
+        stm32l4xx_hal::gpio::Pin<
+            stm32l4xx_hal::gpio::Alternate<stm32l4xx_hal::gpio::PushPull, 5>,
+            stm32l4xx_hal::gpio::L8,
+            'A',
+            5,
+        >,
+        stm32l4xx_hal::gpio::Pin<
+            stm32l4xx_hal::gpio::Alternate<stm32l4xx_hal::gpio::PushPull, 5>,
+            stm32l4xx_hal::gpio::L8,
+            'A',
+            6,
+        >,
+        stm32l4xx_hal::gpio::Pin<
+            stm32l4xx_hal::gpio::Alternate<stm32l4xx_hal::gpio::PushPull, 5>,
+            stm32l4xx_hal::gpio::L8,
+            'A',
+            7,
+        >,
+    ),
+>;
+
+static PERIPHERAL_NAND_SPI: Mutex<RefCell<Option<nand_spi_type>>> = Mutex::new(RefCell::new(None));
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -82,22 +111,23 @@ fn entry_point() -> ! {
     let led = gpioc
         .pc7
         .into_push_pull_output(&mut gpioc.moder, &mut gpioc.otyper);
-
-    // ---- ADDED: NAND SPI + CS SETUP ----
-    // SPI1 pins on Nucleo-L4R5ZI:
-    // PA5 = SCK, PA6 = MISO, PA7 = MOSI
-    let sck = gpioa
-        .pa5
-        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-    let miso = gpioa
-        .pa6
-        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-    let mosi = gpioa
-        .pa7
-        .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-
-    // Chip select on PD14
-    let nand_cs = gpiod
+    // PA5 = flash_chip_spi_SCK
+    let flash_chip_spi_sck =
+        gpioa
+            .pa5
+            .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    // PA6 = flash_chip_spi_MISO
+    let flash_chip_spi_miso =
+        gpioa
+            .pa6
+            .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    // PA7 = flash_chip_spi_MOSI
+    let flash_chip_spi_mosi =
+        gpioa
+            .pa7
+            .into_alternate(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    // PD14 = flash_chip_spi_CS
+    let flash_chip_spi_cs = gpiod
         .pd14
         .into_push_pull_output(&mut gpiod.moder, &mut gpiod.otyper);
 
@@ -105,26 +135,21 @@ fn entry_point() -> ! {
         polarity: Polarity::IdleLow,
         phase: Phase::CaptureOnFirstTransition,
     };
-
+    // catapulting
     let spi1 = Spi::spi1(
         peripheral.SPI1,
-        (sck, miso, mosi),
+        (flash_chip_spi_sck, flash_chip_spi_miso, flash_chip_spi_mosi),
         spi_mode,
         10.MHz(),
         clocks,
         &mut rcc.apb2,
     );
 
-    rprintln!("SPI1 configured for NAND.");
-
-    // Create NAND driver and read ID once at startup
-    let mut nand = flash_main::Nand::new(spi1, nand_cs);
-    nand.read_id();
-
     // --- Move peripherals into global statics ---
     critical_section(|cs| {
         PERIPHERAL_GREEN_LED.borrow(cs).replace(Some(led));
         PERIPHERAL_DELAY_TIMER.borrow(cs).replace(Some(timer));
+        PERIPHERAL_NAND_SPI.borrow(cs).replace(Some(spi1));
     });
 
     // --- USART2 Setup ---
