@@ -19,7 +19,7 @@ cargo install cargo-binutils probe-rs-tools cargo-expand just
 6. To flash and run the firmware, run `cargo embed --target thumbv7em-none-eabihf` from the root of this repo, with the Nucleo-L4A6ZG plugged in.
 7. Observe logs coming from the STM32. Observe the green onboard LED blinking and logs in the debug terminal.
 8. Disconnect power. Connect the USB-UART converter to the OBC's UART2 port.
-    * Connect RX to TX, TX to RX, GND to GND.
+    * Connect RX to TX, TX to RX, GND to GND. RXD pin on the STM is pin PD6, and TXD pin on the STM is pin PD5. All GND's on the STM can be used.
     * Google "nucleo-144 pinout" to find the UART2 pin locations.
     * Ask a friend for help!
 9. Open SerialTest (or similar) and connect to the appropriate COM port at 115200 baud. Enable the "Suffix" checkbox.
