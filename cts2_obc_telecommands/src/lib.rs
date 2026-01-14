@@ -20,6 +20,7 @@ pub struct DemoCommandWithArgumentsArgs {
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world,
+    GetSysUptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
 }
 
