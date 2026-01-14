@@ -1,4 +1,3 @@
-#![no_std]
 use core::fmt::{Error, Write};
 
 pub struct CustomCharBuffer {
@@ -12,6 +11,12 @@ impl CustomCharBuffer {
             size: 0,
             char_buf: [0; 128],
         }
+    }
+}
+
+impl Default for CustomCharBuffer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
