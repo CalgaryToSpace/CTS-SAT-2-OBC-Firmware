@@ -148,7 +148,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
             let sys_time = get_sys_uptime_ms();
             core::write!(&mut buff, "System Uptime: {} ms\r\n", sys_time).unwrap();
             send_umbilical_uart(&buff.char_buf);
-            Ok(Telecommand::GetSysUptime)
+            Ok(())
         }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");

@@ -132,7 +132,8 @@ fn entry_point() -> ! {
         process_umbilical_commands();
 
         // Heartbeat message
-        rprintln!("Heartbeat {} uptime {} ms", i, timekeeping::uptime_ms());
+        let uptime = get_sys_uptime_ms();
+        rprintln!("Heartbeat {} uptime {} ms", i, uptime);
         send_umbilical_uart(b"HEARTBEAT\r\n");
 
         timer_delay_ms(500_u16);

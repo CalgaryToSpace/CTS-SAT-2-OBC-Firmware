@@ -11,7 +11,8 @@ static mut ACCUM_CYCLES: u64 = 0;
 static mut LAST_CYCCNT: u32 = 0;
 
 /// Number of CPU cycles per millisecond (core_hz / 1000).
-static mut CYCLES_PER_MS: u32 = 0;
+/// CPU core clock in Hz (set at init).
+static mut CORE_HZ: u32 = 0;
 
 /// Initialize the DWT cycle counter. Call once during startup.
 /// `core_hz` is the CPU core clock frequency in Hz (e.g. 64_000_000).
@@ -20,7 +21,8 @@ pub fn init(core_hz: u32) -> Result<(), &'static str> {
         return Err("core_hz too small");
     }
 
-    let cycles_per_ms = core_hz / 1000;
+    // store core_hz for conversions
+    let _cycles_per_ms = core_hz / 1000; // keep for a quick sanity derivation if needed
 
     unsafe {
         // Enable trace in DCB (set TRCENA in DEMCR at 0xE000EDFC bit 24)
@@ -39,7 +41,7 @@ pub fn init(core_hz: u32) -> Result<(), &'static str> {
     }
 
     unsafe {
-        CYCLES_PER_MS = cycles_per_ms;
+        CORE_HZ = core_hz;
         LAST_CYCCNT = 0;
     }
     unsafe {
@@ -75,6 +77,13 @@ pub fn uptime_ms() -> u64 {
     });
 
     let total_cycles = critical_section(|_| unsafe { ACCUM_CYCLES });
-    let cycles_per_ms = unsafe { CYCLES_PER_MS as u64 };
-    total_cycles / cycles_per_ms
+
+    // Use 128-bit math to avoid overflow and apply rounding when converting to ms.
+    let core_hz = critical_section(|_| unsafe { CORE_HZ as u128 });
+    if core_hz == 0 {
+        return 0;
+    }
+    let cycles128 = total_cycles as u128;
+    let ms = (cycles128 * 1000u128 + core_hz / 2u128) / core_hz;
+    ms as u64
 }
