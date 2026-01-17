@@ -19,15 +19,6 @@ use stm32l4xx_hal::{
     gpio::{Output, PushPull, gpioc::PC7, gpiod::PD14},
     prelude::*,
 };
-// SPI traits + pin traits from the HAL's re-exported embedded-hal
-use stm32_hal::hal::blocking::spi::{Transfer, Write};
-use stm32_hal::hal::digital::v2::OutputPin;
-
-// ---- ADDED IMPORTS FOR SPI + MODE ----
-use stm32_hal::hal::spi::{Mode, Phase, Polarity};
-use stm32_hal::spi::Spi;
-
-mod flash_main;
 mod telecommand_implementation;
 // importing files
 mod external_nand_flash_driver;
@@ -74,7 +65,10 @@ type nand_spi_type = Spi<
     ),
 >;
 
-static PERIPHERAL_NAND_SPI: Mutex<RefCell<Option<nand_spi_type>>> = Mutex::new(RefCell::new(None));
+pub(crate) static PERIPHERAL_NAND_SPI: Mutex<RefCell<Option<nand_spi_type>>> =
+    Mutex::new(RefCell::new(None));
+pub(crate) static PERIPHERAL_NAND_CS: Mutex<RefCell<Option<PD14<Output<PushPull>>>>> =
+    Mutex::new(RefCell::new(None));
 
 #[cortex_m_rt::entry]
 fn entry_point() -> ! {
@@ -135,7 +129,6 @@ fn entry_point() -> ! {
         polarity: Polarity::IdleLow,
         phase: Phase::CaptureOnFirstTransition,
     };
-    // catapulting
     let spi1 = Spi::spi1(
         peripheral.SPI1,
         (flash_chip_spi_sck, flash_chip_spi_miso, flash_chip_spi_mosi),
@@ -150,6 +143,9 @@ fn entry_point() -> ! {
         PERIPHERAL_GREEN_LED.borrow(cs).replace(Some(led));
         PERIPHERAL_DELAY_TIMER.borrow(cs).replace(Some(timer));
         PERIPHERAL_NAND_SPI.borrow(cs).replace(Some(spi1));
+        PERIPHERAL_NAND_CS
+            .borrow(cs)
+            .replace(Some(flash_chip_spi_cs));
     });
 
     // --- USART2 Setup ---
