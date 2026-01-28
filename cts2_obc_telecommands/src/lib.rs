@@ -6,6 +6,8 @@ extern crate std;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
+mod config;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
