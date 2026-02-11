@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 extern crate std;
+mod scheduler;
 
 // TODO: Remove this placeholder function and add testable logic parts in here.
 pub fn multiply_by_2(i: u32) -> u32 {
@@ -16,5 +17,10 @@ mod tests {
     fn test_placeholder() {
         assert_eq!(multiply_by_2(21), 42);
         assert_eq!(multiply_by_2(0), 0);
+    }
+
+    fn test_scheduler_creation() {
+        let sched = scheduler::new();
+        assert!(sched.is_empty());
     }
 }
