@@ -1,7 +1,6 @@
 use crate::timekeeping::uptime_ms;
 use crate::umbilical_uart::send_umbilical_uart;
 pub mod demo_commands;
-use heapless::String;
 
 pub fn get_sys_uptime_ms_telecommand() -> Result<(), ()> {
     let sys_time = uptime_ms();
