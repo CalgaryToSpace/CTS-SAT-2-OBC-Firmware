@@ -8,10 +8,6 @@ pub fn multiply_by_2(i: u32) -> u32 {
     i * 2
 }
 
-// Re-export custom string buffer module so other crates can use it.
-pub mod custom_string_buffer_logic;
-pub use custom_string_buffer_logic::CustomCharBuffer;
-
 #[cfg(test)]
 mod tests {
     use super::*;

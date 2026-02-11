@@ -20,7 +20,7 @@ pub struct DemoCommandWithArgumentsArgs {
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world,
-    GetSysUptime,
+    get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
 }
 
@@ -47,6 +47,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
                     .map_err(|_| ())?;
             Ok(Telecommand::demo_command_with_arguments(args))
         }
+        "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
         _ => Err(()),
     }
 }

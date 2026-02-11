@@ -106,7 +106,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
         Ok(Telecommand::demo_command_with_arguments(args)) => {
             crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
         }
-        Ok(Telecommand::GetSysUptime) => {
+        Ok(Telecommand::get_sys_uptime) => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()
         }
         Err(e) => {
