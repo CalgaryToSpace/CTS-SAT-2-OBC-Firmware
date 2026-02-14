@@ -129,6 +129,7 @@ dependencies = [
 name = "cts2_obc_telecommands"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "heapless 0.9.2",
  "serde",
  "serde-json-core",
