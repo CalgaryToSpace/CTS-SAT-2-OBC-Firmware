@@ -3,9 +3,9 @@
 #[cfg(test)]
 extern crate std;
 
+use core::sync::atomic::{AtomicU32, Ordering};
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
-use core:: sync:: atomic::{AtomicU32, Ordering};
 
 // --- Configuration Store (snake_case for json) ---
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -45,9 +45,9 @@ impl ConfigStore {
             ConfigVariableName::HeartbeatMs => {
                 Some(ConfigValue::U32(self.heartbeat_ms.load(Ordering::Relaxed)))
             }
-            ConfigVariableName::ConfigDemoVariable1 => {
-                Some(ConfigValue::U32(self.config_demo_variable1.load(Ordering::Relaxed)))
-            }
+            ConfigVariableName::ConfigDemoVariable1 => Some(ConfigValue::U32(
+                self.config_demo_variable1.load(Ordering::Relaxed),
+            )),
         }
     }
 
@@ -78,21 +78,45 @@ pub fn get_config_store() -> &'static ConfigStore {
 }
 
 // --- Telecommand Structures ---
-
 #[derive(Debug)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
+pub struct DemoCommandWithArgumentsArgs {
+    pub arg_u32: u32,
+    pub arg_u64: u64,
+    pub arg_bool: bool,
+    pub arg_f32: f32,
+    pub arg_f64: f64,
+    pub arg_nullable_u32: Option<u32>,
+}
+
+pub struct ConfigGetArgs {
+    // required arguments for a config get command
+    pub name: ConfigVariableName,
+}
+
+pub struct ConfigSetArgs {
+    // required arguments for a config set command
+    pub name: ConfigVariableName,
+    pub value: ConfigValue,
+}
+
+pub struct TelecommandExecutionResult {
+    pub success: bool,
+    pub message: &'static str,
+}
+
 pub enum Telecommand {
     hello_world,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
+    config_get(ConfigGetArgs),
+    config_set(ConfigSetArgs),
 }
 
+// --- Telecommand Parsing ---
 // TODO: Replace with meaningful telecommands
-#[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
+#[allow(clippy::result_unit_err)]
 pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
-    // Extract string before the first '(' to identify the command.
     let command_name = input.trim().split('(').next().unwrap_or("");
-
-    // Extract arguments string between parentheses, if any.
     let command_args_str = input
         .trim()
         .strip_prefix(command_name)
@@ -100,14 +124,23 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
         .and_then(|s| s.strip_suffix(')'))
         .unwrap_or("")
         .trim();
-
-    match command_name.trim() {
+    match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
                     .map_err(|_| ())?;
             Ok(Telecommand::demo_command_with_arguments(args))
+        }
+        "config_get" => {
+            let (args, _rest) =
+                from_slice::<ConfigGetArgs>(command_args_str.as_bytes()).map_err(|_| ())?;
+            Ok(Telecommand::config_get(args))
+        }
+        "config_set" => {
+            let (args, _rest) =
+                from_slice::<ConfigSetArgs>(command_args_str.as_bytes()).map_err(|_| ())?;
+            Ok(Telecommand::config_set(args))
         }
         _ => Err(()),
     }
