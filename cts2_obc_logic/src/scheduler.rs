@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
     High = 4,
     Medium = 3,
@@ -6,12 +6,23 @@ pub enum Priority {
     Debug = 1,
     None = 0,
 }
+
+const TOTAL_TASKS: usize = 256;
+
+#[derive(Debug, Copy, Clone)]
+pub enum TaskArgs {
+    None,
+    Message(&'static str),
+    TwoU32(u32, u32),
+}
+
+pub type TaskFn = fn(TaskArgs);
+
 #[derive(Debug, Copy, Clone)]
 pub struct Task {
     pub name: &'static str,
-    pub execute: fn(),
-    pub num_args: usize,
-    pub args: (),
+    pub execute: TaskFn,
+    pub args: TaskArgs,
     pub priority: Priority,
 }
 impl Task {
@@ -19,18 +30,17 @@ impl Task {
         Task {
             name: "",
             execute: none,
-            num_args: 0,
-            args: (),
+            args: TaskArgs::None,
             priority: Priority::None,
         }
     }
 }
 
-struct Scheduler {
-    high_level_tasks: [Option<Task>; 256],
-    medium_level_tasks: [Option<Task>; 256],
-    low_level_tasks: [Option<Task>; 256],
-    debug_level_tasks: [Option<Task>; 256],
+pub struct Scheduler {
+    high_level_tasks: [Task; TOTAL_TASKS],
+    medium_level_tasks: [Task; TOTAL_TASKS],
+    low_level_tasks: [Task; TOTAL_TASKS],
+    debug_level_tasks: [Task; TOTAL_TASKS],
     head_high: usize,
     head_medium: usize,
     head_low: usize,
@@ -44,10 +54,10 @@ struct Scheduler {
 impl Scheduler {
     pub fn new() -> Self {
         Scheduler {
-            high_level_tasks: [Some(Task::new()); 256],
-            medium_level_tasks: [Some(Task::new()); 256],
-            low_level_tasks: [Some(Task::new()); 256],
-            debug_level_tasks: [Some(Task::new()); 256],
+            high_level_tasks: [Task::new(); TOTAL_TASKS],
+            medium_level_tasks: [Task::new(); TOTAL_TASKS],
+            low_level_tasks: [Task::new(); TOTAL_TASKS],
+            debug_level_tasks: [Task::new(); TOTAL_TASKS],
             head_high: 0,
             head_medium: 0,
             head_low: 0,
@@ -59,82 +69,85 @@ impl Scheduler {
         }
     }
 
-    pub fn add_task(&mut self, task: Task, priority: Priority) -> Result<(), ()> {
+    pub fn add_task(&mut self, mut task: Task, priority: Priority) -> Result<(), ()> {
+        task.priority = priority;
+
         match priority {
             Priority::High => {
-                self.high_level_tasks[self.tail_high].unwrap().name = task.name;
-                self.tail_high = (self.tail_high + 1) % 256;
+                if (self.tail_high + 1) % TOTAL_TASKS == self.head_high {
+                    return Err(()); // Queue is full
+                }
+                self.high_level_tasks[self.tail_high] = task;
+                self.tail_high = (self.tail_high + 1) % TOTAL_TASKS;
             }
             Priority::Medium => {
-                self.medium_level_tasks[self.tail_medium].unwrap().name = task.name;
-                self.tail_medium = (self.tail_medium + 1) % 256;
+                if (self.tail_medium + 1) % TOTAL_TASKS == self.head_medium {
+                    return Err(()); // Queue is full
+                }
+                self.medium_level_tasks[self.tail_medium] = task;
+                self.tail_medium = (self.tail_medium + 1) % TOTAL_TASKS;
             }
             Priority::Low => {
-                self.low_level_tasks[self.tail_low].unwrap().name = task.name;
-                self.tail_low = (self.tail_low + 1) % 256;
+                if (self.tail_low + 1) % TOTAL_TASKS == self.head_low {
+                    return Err(()); // Queue is full
+                }
+                self.low_level_tasks[self.tail_low] = task;
+                self.tail_low = (self.tail_low + 1) % TOTAL_TASKS;
             }
             Priority::Debug => {
-                self.debug_level_tasks[self.tail_debug].unwrap().name = task.name;
-                self.tail_debug = (self.tail_debug + 1) % 256;
+                if (self.tail_debug + 1) % TOTAL_TASKS == self.head_debug {
+                    return Err(()); // Queue is full
+                }
+                self.debug_level_tasks[self.tail_debug] = task;
+                self.tail_debug = (self.tail_debug + 1) % TOTAL_TASKS;
             }
             Priority::None => return Err(()),
         }
         Ok(())
     }
 
-    pub fn run_next_task(&mut self) -> Result<(), ()> {
+    pub fn run_next_task(&mut self) -> Result<Task, ()> {
+        let task;
         if !self.is_empty(Priority::High) {
-            (self.high_level_tasks[self.head_high].unwrap().execute)();
+            task = self.high_level_tasks[self.head_high];
+            (task.execute)(task.args);
             self.remove_head_task(Priority::High)?;
         } else if !self.is_empty(Priority::Medium) {
-            (self.medium_level_tasks[self.head_medium].unwrap().execute)();
+            task = self.medium_level_tasks[self.head_medium];
+            (task.execute)(task.args);
             self.remove_head_task(Priority::Medium)?;
         } else if !self.is_empty(Priority::Low) {
-            (self.low_level_tasks[self.head_low].unwrap().execute)();
+            task = self.low_level_tasks[self.head_low];
+            (task.execute)(task.args);
             self.remove_head_task(Priority::Low)?;
         } else if !self.is_empty(Priority::Debug) {
-            (self.debug_level_tasks[self.head_debug].unwrap().execute)();
+            task = self.debug_level_tasks[self.head_debug];
+            (task.execute)(task.args);
             self.remove_head_task(Priority::Debug)?;
         } else {
             return Err(());
         }
 
-        Ok(())
+        Ok(task)
     }
 
     fn remove_head_task(&mut self, priority: Priority) -> Result<(), ()> {
         match priority {
             Priority::High => {
-                self.high_level_tasks[self.head_high].unwrap().name = "";
-                self.high_level_tasks[self.head_high].unwrap().execute = none;
-                self.high_level_tasks[self.head_high].unwrap().num_args = 0;
-                self.high_level_tasks[self.head_high].unwrap().args = ();
-                self.high_level_tasks[self.head_high].unwrap().priority = Priority::None;
-                self.head_high = (self.head_high + 1) % 256;
+                self.high_level_tasks[self.head_high] = Task::new();
+                self.head_high = (self.head_high + 1) % TOTAL_TASKS;
             }
             Priority::Medium => {
-                self.medium_level_tasks[self.head_medium].unwrap().name = "";
-                self.medium_level_tasks[self.head_medium].unwrap().execute = none;
-                self.medium_level_tasks[self.head_medium].unwrap().num_args = 0;
-                self.medium_level_tasks[self.head_medium].unwrap().args = ();
-                self.medium_level_tasks[self.head_medium].unwrap().priority = Priority::None;
-                self.head_medium = (self.head_medium + 1) % 256;
+                self.medium_level_tasks[self.head_medium] = Task::new();
+                self.head_medium = (self.head_medium + 1) % TOTAL_TASKS;
             }
             Priority::Low => {
-                self.low_level_tasks[self.head_low].unwrap().name = "";
-                self.low_level_tasks[self.head_low].unwrap().execute = none;
-                self.low_level_tasks[self.head_low].unwrap().num_args = 0;
-                self.low_level_tasks[self.head_low].unwrap().args = ();
-                self.low_level_tasks[self.head_low].unwrap().priority = Priority::None;
-                self.head_low = (self.head_low + 1) % 256;
+                self.low_level_tasks[self.head_low] = Task::new();
+                self.head_low = (self.head_low + 1) % TOTAL_TASKS;
             }
             Priority::Debug => {
-                self.debug_level_tasks[self.head_debug].unwrap().name = "";
-                self.debug_level_tasks[self.head_debug].unwrap().execute = none;
-                self.debug_level_tasks[self.head_debug].unwrap().num_args = 0;
-                self.debug_level_tasks[self.head_debug].unwrap().args = ();
-                self.debug_level_tasks[self.head_debug].unwrap().priority = Priority::None;
-                self.head_debug = (self.head_debug + 1) % 256;
+                self.debug_level_tasks[self.head_debug] = Task::new();
+                self.head_debug = (self.head_debug + 1) % TOTAL_TASKS;
             }
             Priority::None => return Err(()),
         }
@@ -143,12 +156,25 @@ impl Scheduler {
 
     pub fn is_empty(&self, priority: Priority) -> bool {
         match priority {
-            Priority::High => self.head_high == self.tail_high,
-            Priority::Medium => self.head_medium == self.tail_medium,
-            Priority::Low => self.head_low == self.tail_low,
-            Priority::Debug => self.head_debug == self.tail_debug,
+            Priority::High => {
+                self.head_high == self.tail_high
+                    && self.high_level_tasks[self.head_high].priority == Priority::None
+            }
+            Priority::Medium => {
+                self.head_medium == self.tail_medium
+                    && self.medium_level_tasks[self.head_medium].priority == Priority::None
+            }
+            Priority::Low => {
+                self.head_low == self.tail_low
+                    && self.low_level_tasks[self.head_low].priority == Priority::None
+            }
+            Priority::Debug => {
+                self.head_debug == self.tail_debug
+                    && self.debug_level_tasks[self.head_debug].priority == Priority::None
+            }
             Priority::None => true,
         }
     }
 }
-fn none() {}
+
+fn none(_: TaskArgs) {}
