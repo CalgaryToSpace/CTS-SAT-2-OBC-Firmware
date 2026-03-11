@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_queue_full() {
         let mut sched = scheduler::Scheduler::new();
-        for i in 0..scheduler::TOTAL_TASKS {
+        for _i in 0..256 {
             let task = scheduler::Task {
                 name: "Filler Task",
                 execute: test_print_task,
