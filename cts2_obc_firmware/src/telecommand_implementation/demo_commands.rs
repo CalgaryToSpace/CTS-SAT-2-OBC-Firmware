@@ -1,4 +1,4 @@
-use cts2_obc_telecommands::DemoCommandWithArgumentsArgs;
+use cts2_obc_telecommands::{DemoCommandWithArgumentsArgs, TCMDConfigSetU32VarArgs};
 use rtt_target::rprintln;
 
 use crate::umbilical_uart::send_umbilical_uart;
@@ -21,5 +21,10 @@ pub fn run_demo_command_with_arguments(args: DemoCommandWithArgumentsArgs) -> Re
     );
     send_umbilical_uart(b"DEMO COMMAND WITH ARGUMENTS EXECUTED. See RTT output for details.\r\n");
 
+    Ok(())
+}
+
+// UNFINISHED IMPLEMENTATION
+pub fn run_tcmd_config_set_u32_var(args: TCMDConfigSetU32VarArgs) -> Result<(), ()> {
     Ok(())
 }

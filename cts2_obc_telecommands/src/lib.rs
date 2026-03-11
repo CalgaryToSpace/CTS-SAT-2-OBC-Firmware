@@ -6,6 +6,7 @@ extern crate std;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
+use crate::config::ConfigVariable;
 mod config;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -18,11 +19,18 @@ pub struct DemoCommandWithArgumentsArgs {
     pub arg_nullable_u32: Option<u32>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TCMDConfigSetU32VarArgs {
+    pub arg_var_name: ConfigVariable,
+    pub arg_u32: u32,
+}
+
 #[derive(Debug)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
+    tcmd_config_set_u32_var(TCMDConfigSetU32VarArgs),
 }
 
 // TODO: Replace with meaningful telecommands
@@ -47,6 +55,12 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
                     .map_err(|_| ())?;
             Ok(Telecommand::demo_command_with_arguments(args))
+        }
+        "tcmd_config_set_u32_var" => {
+            let (args, _rest) =
+                from_slice::<TCMDConfigSetU32VarArgs>(command_args_str.as_bytes())
+                    .map_err(|_| ())?;
+            Ok(Telecommand::tcmd_config_set_u32_var(args))
         }
         _ => Err(()),
     }

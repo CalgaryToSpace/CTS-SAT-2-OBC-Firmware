@@ -106,6 +106,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
         Ok(Telecommand::demo_command_with_arguments(args)) => {
             crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
         }
+        Ok(Telecommand::tcmd_config_set_u32_var(args)) => {
+            crate::telecommand_implementation::demo_commands::run_tcmd_config_set_u32_var(args)
+        }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
             Err(e)
