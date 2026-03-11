@@ -17,6 +17,7 @@ use stm32l4xx_hal::{
 };
 
 mod telecommand_implementation;
+mod timekeeping;
 mod umbilical_uart;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
@@ -59,6 +60,12 @@ fn entry_point() -> ! {
         PERIPHERAL_CLOCKS.borrow(cs).replace(Some(clocks));
     });
     rprintln!("Clocks configured.");
+
+    if let Err(e) = timekeeping::init(64_000_000u32) {
+        rprintln!("Timekeeping init error: {}", e);
+    } else {
+        rprintln!("Timekeeping initialized.");
+    }
 
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
@@ -125,7 +132,8 @@ fn entry_point() -> ! {
         process_umbilical_commands();
 
         // Heartbeat message
-        rprintln!("Heartbeat {}", i);
+        let uptime = get_sys_uptime_ms();
+        rprintln!("Heartbeat {} uptime {} ms", i, uptime);
         send_umbilical_uart(b"HEARTBEAT\r\n");
 
         timer_delay_ms(500_u16);
@@ -147,6 +155,10 @@ fn timer_delay_ms(ms: u16) {
             timer.delay_ms(ms);
         }
     });
+}
+
+pub fn get_sys_uptime_ms() -> u64 {
+    timekeeping::uptime_ms()
 }
 
 #[inline(never)]
