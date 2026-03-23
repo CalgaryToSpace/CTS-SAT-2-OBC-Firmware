@@ -160,7 +160,7 @@ fn entry_point() -> ! {
         });
 
         // Heartbeat message
-        let uptime = get_sys_uptime_ms();
+        let uptime = timekeeping::uptime_ms();
         rprintln!("Heartbeat {} uptime {} ms", i, uptime);
         send_umbilical_uart(b"HEARTBEAT\r\n");
 
@@ -183,10 +183,6 @@ fn timer_delay_ms(ms: u16) {
             timer.delay_ms(ms);
         }
     });
-}
-
-pub fn get_sys_uptime_ms() -> u64 {
-    timekeeping::uptime_ms()
 }
 
 #[inline(never)]
