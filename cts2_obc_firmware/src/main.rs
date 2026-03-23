@@ -20,10 +20,19 @@ mod telecommand_implementation;
 mod timekeeping;
 mod umbilical_uart;
 
+mod scheduler_instance {
+    use core::cell::RefCell;
+    use cortex_m::interrupt::Mutex;
+    use cts2_obc_logic::scheduler::Scheduler;
+
+    pub static SCHEDULER: Mutex<RefCell<Option<Scheduler>>> = Mutex::new(RefCell::new(None));
+}
+
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
 use crate::umbilical_uart::MAX_TELECOMMAND_STR_LENGTH;
 use crate::umbilical_uart::poll_uart_rx;
+use cts2_obc_logic::scheduler::Scheduler;
 
 static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
     Mutex::new(RefCell::new(None));
@@ -115,6 +124,14 @@ fn entry_point() -> ! {
     };
     rprintln!("USART2 initialized for 115200 8N1.");
 
+    // --- Initialize Scheduler ---
+    critical_section(|cs| {
+        crate::scheduler_instance::SCHEDULER
+            .borrow(cs)
+            .replace(Some(Scheduler::new()));
+    });
+    rprintln!("Scheduler initialized.");
+
     unsafe {
         NVIC::unmask(stm32_hal::stm32::Interrupt::USART2);
     }
@@ -130,6 +147,17 @@ fn entry_point() -> ! {
 
         // Periodically check for incoming commands
         process_umbilical_commands();
+
+        // Run scheduled tasks
+        critical_section(|cs| {
+            if let Some(ref mut scheduler) =
+                *crate::scheduler_instance::SCHEDULER.borrow(cs).borrow_mut()
+            {
+                while scheduler.run_next_task().is_ok() {
+                    // Run all available tasks
+                }
+            }
+        });
 
         // Heartbeat message
         let uptime = get_sys_uptime_ms();

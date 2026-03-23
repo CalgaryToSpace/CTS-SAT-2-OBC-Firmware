@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 extern crate std;
-mod scheduler;
+pub mod scheduler;
 
 // TODO: Remove this placeholder function and add testable logic parts in here.
 pub fn multiply_by_2(i: u32) -> u32 {

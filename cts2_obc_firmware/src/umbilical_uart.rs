@@ -3,7 +3,9 @@ use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+use cts2_obc_logic::scheduler::{Task, TaskArgs, Priority};
+use cortex_m::interrupt::free as critical_section;
+use crate::scheduler_instance::SCHEDULER;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -102,9 +104,36 @@ pub fn process_umbilical_commands() {
 fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
-        Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
+        Ok(Telecommand::hello_world) => {
+            let task = Task {
+                name: "hello_world",
+                execute: crate::telecommand_implementation::demo_commands::task_hello_world,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                if let Some(ref mut scheduler) = *SCHEDULER.borrow(cs).borrow_mut() {
+                    scheduler.add_task(task, Priority::Medium).ok();
+                }
+            });
+            Ok(())
+        }
         Ok(Telecommand::demo_command_with_arguments(args)) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
+            critical_section(|cs| {
+                crate::telecommand_implementation::demo_commands::DEMO_ARGS.borrow(cs).replace(Some(args));
+            });
+            let task = Task {
+                name: "demo_command",
+                execute: crate::telecommand_implementation::demo_commands::task_demo_command_with_arguments,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                if let Some(ref mut scheduler) = *SCHEDULER.borrow(cs).borrow_mut() {
+                    scheduler.add_task(task, Priority::Medium).ok();
+                }
+            });
+            Ok(())
         }
         Ok(Telecommand::get_sys_uptime) => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()
