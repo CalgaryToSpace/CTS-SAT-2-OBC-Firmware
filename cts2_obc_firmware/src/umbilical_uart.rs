@@ -30,14 +30,20 @@ pub fn poll_uart_rx(
     >,
 ) {
     let mut buf = [0; MAX_TELECOMMAND_STR_LENGTH];
-    let buf_size = rx_transfer.read(&mut buf).unwrap();
-
-    // Process data[..pending].
-    for &b in buf.iter().take(buf_size) {
-        if b != 0 {
-            rprintln!("RX: {}", b);
+    match rx_transfer.read(&mut buf) {
+        Ok(buf_size) => {
+            // Process data[..pending].
+            for &b in buf.iter().take(buf_size) {
+                if b != 0 {
+                    rprintln!("RX: {}", b);
+                }
+                uart_push_byte(b);
+            }
         }
-        uart_push_byte(b);
+        Err(_overrun) => {
+            // DMA buffer overrun - log it but continue processing
+            rprintln!("DMA RX Overrun - data may have been lost");
+        }
     }
 }
 
@@ -112,9 +118,8 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 priority: Priority::Medium,
             };
             critical_section(|cs| {
-                if let Some(ref mut scheduler) = *SCHEDULER.borrow(cs).borrow_mut() {
-                    scheduler.add_task(task, Priority::Medium).ok();
-                }
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
             });
             Ok(())
         }
@@ -131,9 +136,8 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 priority: Priority::Medium,
             };
             critical_section(|cs| {
-                if let Some(ref mut scheduler) = *SCHEDULER.borrow(cs).borrow_mut() {
-                    scheduler.add_task(task, Priority::Medium).ok();
-                }
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
             });
             Ok(())
         }
@@ -145,9 +149,8 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 priority: Priority::Medium,
             };
             critical_section(|cs| {
-                if let Some(ref mut scheduler) = *SCHEDULER.borrow(cs).borrow_mut() {
-                    scheduler.add_task(task, Priority::Medium).ok();
-                }
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
             });
             Ok(())
         }

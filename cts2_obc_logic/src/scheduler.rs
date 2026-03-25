@@ -70,11 +70,44 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new() -> Self {
+        const DEFAULT_TASK: Task = Task {
+            name: "",
+            execute: none,
+            args: TaskArgs::None,
+            priority: Priority::None,
+        };
         Scheduler {
-            high_level_tasks: [Task::new(); TOTAL_TASKS],
-            medium_level_tasks: [Task::new(); TOTAL_TASKS],
-            low_level_tasks: [Task::new(); TOTAL_TASKS],
-            debug_level_tasks: [Task::new(); TOTAL_TASKS],
+            high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            debug_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            count_high: 0,
+            count_medium: 0,
+            count_low: 0,
+            count_debug: 0,
+            head_high: 0,
+            head_medium: 0,
+            head_low: 0,
+            head_debug: 0,
+            tail_high: 0,
+            tail_medium: 0,
+            tail_low: 0,
+            tail_debug: 0,
+        }
+    }
+
+    pub const fn const_new() -> Self {
+        const DEFAULT_TASK: Task = Task {
+            name: "",
+            execute: none,
+            args: TaskArgs::None,
+            priority: Priority::None,
+        };
+        Scheduler {
+            high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            debug_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
             count_high: 0,
             count_medium: 0,
             count_low: 0,
