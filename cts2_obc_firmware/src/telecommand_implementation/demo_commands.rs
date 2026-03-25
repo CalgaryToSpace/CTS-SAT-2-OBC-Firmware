@@ -1,7 +1,12 @@
+use core::cell::RefCell;
+use cortex_m::interrupt::Mutex;
 use cts2_obc_telecommands::DemoCommandWithArgumentsArgs;
 use rtt_target::rprintln;
 
 use crate::umbilical_uart::send_umbilical_uart;
+
+pub static DEMO_ARGS: Mutex<RefCell<Option<DemoCommandWithArgumentsArgs>>> =
+    Mutex::new(RefCell::new(None));
 
 pub fn run_hello_world_telecommand() -> Result<(), ()> {
     send_umbilical_uart(b"HELLO WORLD\r\n");

@@ -3,7 +3,9 @@ use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+use crate::scheduler_instance::SCHEDULER;
+use cortex_m::interrupt::free as critical_section;
+use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -28,14 +30,20 @@ pub fn poll_uart_rx(
     >,
 ) {
     let mut buf = [0; MAX_TELECOMMAND_STR_LENGTH];
-    let buf_size = rx_transfer.read(&mut buf).unwrap();
-
-    // Process data[..pending].
-    for &b in buf.iter().take(buf_size) {
-        if b != 0 {
-            rprintln!("RX: {}", b);
+    match rx_transfer.read(&mut buf) {
+        Ok(buf_size) => {
+            // Process data[..pending].
+            for &b in buf.iter().take(buf_size) {
+                if b != 0 {
+                    rprintln!("RX: {}", b);
+                }
+                uart_push_byte(b);
+            }
         }
-        uart_push_byte(b);
+        Err(_overrun) => {
+            // DMA buffer overrun - log it but continue processing
+            rprintln!("DMA RX Overrun - data may have been lost");
+        }
     }
 }
 
@@ -102,12 +110,49 @@ pub fn process_umbilical_commands() {
 fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
-        Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
+        Ok(Telecommand::hello_world) => {
+            let task = Task {
+                name: "hello_world",
+                execute: crate::telecommand_implementation::telecommand_hello_world,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
+            });
+            Ok(())
+        }
         Ok(Telecommand::demo_command_with_arguments(args)) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
+            critical_section(|cs| {
+                crate::telecommand_implementation::demo_commands::DEMO_ARGS
+                    .borrow(cs)
+                    .replace(Some(args));
+            });
+            let task = Task {
+                name: "demo_command",
+                execute: crate::telecommand_implementation::telecommand_demo_command_with_arguments,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
+            });
+            Ok(())
         }
         Ok(Telecommand::get_sys_uptime) => {
-            crate::telecommand_implementation::get_sys_uptime_ms_telecommand()
+            let task = Task {
+                name: "get_sys_uptime",
+                execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
+            });
+            Ok(())
         }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
