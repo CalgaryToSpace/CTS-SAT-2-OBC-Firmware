@@ -1,3 +1,6 @@
+// Use Mutex to safely share peripherals across tasks/interrupt?
+// Implement critical sections for safe access to shared resources?
+
 #![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]
@@ -91,11 +94,13 @@ pub struct DemoCommandWithArgumentsArgs {
     pub arg_nullable_u32: Option<u32>,
 }
 
+// TODO:Add more args for other telecommands as needed
+
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 
 pub enum Telecommand {
-    hello_world,
+    hello_world, // telecommand with no args
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
 }
 
