@@ -3,11 +3,30 @@
 #[cfg(test)]
 extern crate std;
 
+extern crate cortex_m;
+
+use core::cell::RefCell;
+use cortex_m::interrupt::Mutex;
+use cortex_m::interrupt::free as critical_section;
+use heapless::index_map::FnvIndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
-use crate::config::ConfigVariable;
-mod config;
+// IndexMap to hold configuration variables. HashMaps cannot be used for embedded systems since they 
+// are dynamically allocated; IndexMaps are a heapless alternative with a fixed capacity.
+// There will need to be a separate IndexMap for each variable type (u32, u64, bool, ...)
+// https://docs.rust-embedded.org/book/collections/
+pub static CONFIG_U32_VARIABLES: Mutex<RefCell<FnvIndexMap<ConfigVariable, u32, 2>>> =
+    Mutex::new(RefCell::new(FnvIndexMap::new()));
+
+// Enum of all configuration variable names
+#[derive(Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum ConfigVariable {
+    heartbeat_ms,
+    config_demo_variable1,
+    // TODO: Add more configuration variables here
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DemoCommandWithArgumentsArgs {
@@ -30,7 +49,7 @@ pub struct TCMDConfigSetU32VarArgs {
 pub enum Telecommand {
     hello_world,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
-    tcmd_config_set_u32_var(TCMDConfigSetU32VarArgs),
+    tcmd_config_set_u32_var(TCMDConfigSetU32VarArgs),               // Adding a setter telecommand to test methods (unfinished implementation).
 }
 
 // TODO: Replace with meaningful telecommands
@@ -64,6 +83,36 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
         }
         _ => Err(()),
     }
+}
+
+// The following functions will need to be modified if the location of the CONFIG_U32_VARIABLES IndexMap changes.
+// This file might not be the best location for it.
+
+// The idea was to run this at the beginning of the program to configure initial values of the variables
+// and add them to the IndexMap. There may be a better way.
+pub fn config_all_u32() {
+    critical_section(|cs| {
+        let mut config_u32 = CONFIG_U32_VARIABLES.borrow(cs).borrow_mut();
+        config_u32.insert(ConfigVariable::heartbeat_ms, 500).unwrap();
+        config_u32.insert(ConfigVariable::config_demo_variable1, 12345).unwrap();
+    });
+}
+
+// Set function without Result<(), ()> return type
+// Called within the attempted telecommand implementation in cts2_obc_firmware\src\telecommand_implementation\demo_commands.rs
+pub fn config_set_u32_variable(var_name: ConfigVariable, new_value: u32)  {    
+    critical_section(|cs| {
+        if let Some(value) = CONFIG_U32_VARIABLES.borrow(cs).borrow_mut().get_mut(&var_name) {
+            *value = new_value;
+        }
+    });
+}
+
+// Should eventually be called within the getter telecommand implementation.
+pub fn config_get_u32_variable(var_name: ConfigVariable) -> Option<u32> {
+    critical_section(|cs| {
+        CONFIG_U32_VARIABLES.borrow(cs).borrow().get(&var_name).copied()
+    })
 }
 
 #[cfg(test)]

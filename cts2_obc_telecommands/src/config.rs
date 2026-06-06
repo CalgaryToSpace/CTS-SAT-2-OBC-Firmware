@@ -1,5 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
+// Most of this code has been moved to the lib.rs file. This file was kept as a backup for personal reference.
+
 #[cfg(test)]
 extern crate std;
 
@@ -23,7 +25,7 @@ pub enum ConfigVariable {
 pub static CONFIG_U32_VARIABLES: Mutex<RefCell<FnvIndexMap<ConfigVariable, u32, 2>>> =
     Mutex::new(RefCell::new(FnvIndexMap::new()));
 
-// Attempt to add configuration variables (temporary solution, but what is a better way?)
+// Attempt to add configuration variables (temporary solution)
 
 pub fn config_all_u32() {
     critical_section(|cs| {
