@@ -10,3 +10,9 @@ pub fn get_sys_uptime_ms_telecommand() -> Result<(), ()> {
     send_umbilical_uart(&buff);
     Ok(())
 }
+
+pub fn my_name_telecommand() -> Result<(), ()> {
+    let buff = b"Hello, my name is Thomas\r\n";
+    send_umbilical_uart(buff);
+    Ok(())
+}

@@ -22,6 +22,7 @@ pub enum Telecommand {
     hello_world,
     get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
+    my_name,
 }
 
 // TODO: Replace with meaningful telecommands
@@ -48,6 +49,8 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
+        "my_name" => Ok(Telecommand::my_name),
+        // existing telecommand.
         _ => Err(()),
     }
 }

@@ -109,6 +109,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
         Ok(Telecommand::get_sys_uptime) => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()
         }
+        Ok(Telecommand::my_name) => {
+            crate::telecommand_implementation::my_name_telecommand()
+        }
         Err(e) => {
             send_umbilical_uart(b"ERR: unknown command\r\n");
             Err(e)
