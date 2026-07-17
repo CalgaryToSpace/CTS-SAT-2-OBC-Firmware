@@ -4,9 +4,6 @@ use thiserror::Error;
 pub enum ParsedTelecommandErr {
     #[error("Unknown telecommand")]
     UnknownCommand,
-
-    #[error("Command too long")]
-    CommandTooLong,
     
     #[error("Failed to deserialize telecommand arguments")]
     DeserializationError(#[from] serde_json_core::de::Error),
