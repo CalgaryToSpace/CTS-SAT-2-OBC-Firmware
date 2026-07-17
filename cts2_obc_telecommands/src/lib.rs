@@ -6,8 +6,10 @@ extern crate std;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
-mod error;
+pub mod error;
 use error::ParsedTelecommandErr;
+
+use crate::error::CommandName;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DemoCommandWithArgumentsArgs {
@@ -29,7 +31,7 @@ pub enum Telecommand {
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand, ParsedTelecommandErr<'a>> {
+pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
     let command_name = input.trim().split('(').next().unwrap_or("");
 
@@ -51,7 +53,11 @@ pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand, ParsedTeleco
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        _ => Err(ParsedTelecommandErr::UnknownCommand(command_name))
+        _ => {
+            let cmd_name = CommandName::try_from(command_name)
+                .map_err(|_| ParsedTelecommandErr::CommandTooLong)?;
+            Err(ParsedTelecommandErr::UnknownCommand(cmd_name))
+        }
     }
 }
 
@@ -100,11 +106,36 @@ mod tests {
 
     #[test]
     fn test_parse_telecommand_invalid() {
-        assert!(matches!(parse_telecommand("PINGS"), Err(ParsedTelecommandErr::UnknownCommand("PINGS"))));
-        assert!(matches!(parse_telecommand("PONGS"), Err(ParsedTelecommandErr::UnknownCommand("PONGS"))));
-        assert!(matches!(parse_telecommand(""), Err(ParsedTelecommandErr::UnknownCommand(""))));
-        assert!(matches!(parse_telecommand("LEDON"), Err(ParsedTelecommandErr::UnknownCommand("LEDON"))));
-        assert!(matches!(parse_telecommand("LEDOFF"), Err(ParsedTelecommandErr::UnknownCommand("LEDOFF"))));
+        assert_eq!(
+            parse_telecommand("PINGS"),
+            Err(ParsedTelecommandErr::UnknownCommand(
+                CommandName::try_from("PINGS").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_telecommand("PONGS"),
+            Err(ParsedTelecommandErr::UnknownCommand(
+                CommandName::try_from("PONGS").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_telecommand(""),
+            Err(ParsedTelecommandErr::UnknownCommand(
+                CommandName::try_from("").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_telecommand("LEDON"),
+            Err(ParsedTelecommandErr::UnknownCommand(
+                CommandName::try_from("LEDON").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_telecommand("LEDOFF"),
+            Err(ParsedTelecommandErr::UnknownCommand(
+                CommandName::try_from("LEDOFF").unwrap()
+            ))
+        );
     }
 
     #[test]

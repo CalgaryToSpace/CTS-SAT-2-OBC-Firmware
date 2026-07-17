@@ -4,6 +4,7 @@ use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
 use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+use crate::error::DispatchCmdErr;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -99,7 +100,7 @@ pub fn process_umbilical_commands() {
 // TODO: Make different functions to handle each separate command.
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
+fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCmdErr> {
     let cmd = parse_telecommand(cmd_str);
     match cmd {
         Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
