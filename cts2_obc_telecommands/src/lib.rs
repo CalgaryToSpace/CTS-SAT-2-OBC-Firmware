@@ -9,7 +9,7 @@ use serde_json_core::de::from_slice;
 pub mod error;
 use error::ParsedTelecommandErr;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
     pub arg_u64: u64,
@@ -19,7 +19,7 @@ pub struct DemoCommandWithArgumentsArgs {
     pub arg_nullable_u32: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world,
@@ -120,6 +120,12 @@ mod tests {
         assert_eq!(
             parse_telecommand("LEDOFF"),
             Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("demo_command_with_arguments({invalid_json})"),
+            Err(ParsedTelecommandErr::DeserializationError(
+                serde_json_core::de::Error::KeyMustBeAString
+            ))
         );
     }
 
