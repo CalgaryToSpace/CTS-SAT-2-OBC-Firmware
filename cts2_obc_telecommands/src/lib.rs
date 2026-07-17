@@ -9,8 +9,6 @@ use serde_json_core::de::from_slice;
 pub mod error;
 use error::ParsedTelecommandErr;
 
-use crate::error::CommandName;
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
@@ -53,11 +51,8 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        _ => {
-            let cmd_name = CommandName::try_from(command_name)
-                .map_err(|_| ParsedTelecommandErr::CommandTooLong)?;
-            Err(ParsedTelecommandErr::UnknownCommand(cmd_name))
-        }
+        _ => Err(ParsedTelecommandErr::UnknownCommand)
+       
     }
 }
 
@@ -108,33 +103,23 @@ mod tests {
     fn test_parse_telecommand_invalid() {
         assert_eq!(
             parse_telecommand("PINGS"),
-            Err(ParsedTelecommandErr::UnknownCommand(
-                CommandName::try_from("PINGS").unwrap()
-            ))
+            Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
             parse_telecommand("PONGS"),
-            Err(ParsedTelecommandErr::UnknownCommand(
-                CommandName::try_from("PONGS").unwrap()
-            ))
+            Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
             parse_telecommand(""),
-            Err(ParsedTelecommandErr::UnknownCommand(
-                CommandName::try_from("").unwrap()
-            ))
+            Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
             parse_telecommand("LEDON"),
-            Err(ParsedTelecommandErr::UnknownCommand(
-                CommandName::try_from("LEDON").unwrap()
-            ))
+            Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
             parse_telecommand("LEDOFF"),
-            Err(ParsedTelecommandErr::UnknownCommand(
-                CommandName::try_from("LEDOFF").unwrap()
-            ))
+            Err(ParsedTelecommandErr::UnknownCommand)
         );
     }
 
