@@ -6,73 +6,11 @@
 #[cfg(test)]
 extern crate std;
 
-use core::sync::atomic::{AtomicU32, Ordering};
+mod config;
+use config::ConfigStore;
+
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
-
-// --- Configuration Store (snake_case for json) ---
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-pub enum ConfigVariableName {
-    #[serde(rename = "heartbeat_ms")]
-    HeartbeatMs,
-    #[serde(rename = "config_demo_variable1")]
-    ConfigDemoVariable1,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
-pub enum ConfigValue {
-    U32(u32),
-    // TODO: Add more types as needed (e.g., U64, Bool, F32, F64, etc.)
-}
-
-// Global configuration store
-pub struct ConfigStore {
-    heartbeat_ms: AtomicU32,
-    config_demo_variable1: AtomicU32,
-}
-
-impl ConfigStore {
-    // create new config store with default values
-    pub const fn new() -> Self {
-        Self {
-            heartbeat_ms: AtomicU32::new(1000),
-            config_demo_variable1: AtomicU32::new(0),
-        }
-    }
-
-    // get a config value by name
-    pub fn get(&self, name: ConfigVariableName) -> ConfigValue {
-        match name {
-            ConfigVariableName::HeartbeatMs => {
-                ConfigValue::U32(self.heartbeat_ms.load(Ordering::Relaxed))
-            }
-            ConfigVariableName::ConfigDemoVariable1 => {
-                ConfigValue::U32(self.config_demo_variable1.load(Ordering::Relaxed))
-            }
-        }
-    }
-
-    // set a configuration value by name
-    pub fn set(&self, name: ConfigVariableName, value: ConfigValue) -> Result<(), ConfigError> {
-        match (name, value) {
-            (ConfigVariableName::HeartbeatMs, ConfigValue::U32(v)) => {
-                self.heartbeat_ms.store(v, Ordering::Relaxed);
-                Ok(())
-            }
-            (ConfigVariableName::ConfigDemoVariable1, ConfigValue::U32(v)) => {
-                self.config_demo_variable1.store(v, Ordering::Relaxed);
-                Ok(())
-            }
-            _ => Err(ConfigError::TypeMismatch),
-        }
-    }
-}
-
-// config operation errors
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfigError {
-    TypeMismatch,
-}
 
 // global static singleton for configuration
 static CONFIG_STORE: ConfigStore = ConfigStore::new();
@@ -98,7 +36,6 @@ pub struct DemoCommandWithArgumentsArgs {
 
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-
 pub enum Telecommand {
     hello_world, // telecommand with no args
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
@@ -141,6 +78,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use config::{ConfigVariableName, ConfigValue};
 
     #[test]
     fn test_config_store_get_set() {
