@@ -7,7 +7,7 @@ pub enum DispatchCommandErr {
     ParsedTelecommandError(#[from] ParsedTelecommandErr),
 
     #[error("Failed to execute telecommand")]
-    ExecuteCmdError(#[from] ExecuteCommandErr),
+    ExecuteCommandError(#[from] ExecuteCommandErr),
 }
 
 #[derive(Debug, Error)]
