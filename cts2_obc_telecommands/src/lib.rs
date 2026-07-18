@@ -9,6 +9,9 @@ extern crate std;
 mod config;
 use config::ConfigStore;
 
+pub mod error;
+use error::ParsedTelecommandErr;
+
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
@@ -21,8 +24,7 @@ pub fn get_config_store() -> &'static ConfigStore {
 }
 
 // --- Existing Telecommand Code ---
-#[derive(Debug, Deserialize, Serialize)]
-
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
     pub arg_u64: u64,
@@ -34,16 +36,18 @@ pub struct DemoCommandWithArgumentsArgs {
 
 // TODO:Add more args for other telecommands as needed
 
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq)]
+#[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world, // telecommand with no args
+    get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
 }
 
 // TODO: Replace with meaningful telecommands
-#[allow(clippy::result_unit_err)]
-pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
+#[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
+pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
+    // Extract string before the first '(' to identify the command.
     let command_name = input.trim().split('(').next().unwrap_or("");
     let command_args_str = input
         .trim()
@@ -57,21 +61,11 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
-                    .map_err(|_| ())?;
+                    .map_err(ParsedTelecommandErr::DeserializationError)?;
             Ok(Telecommand::demo_command_with_arguments(args))
         }
-        // TODO: Add config_get and config_set telecommands that interact with the ConfigStore
-        // "config_get" => {
-        //     let (args, _rest) =
-        //         from_slice::<ConfigGetArgs>(command_args_str.as_bytes()).map_err(|_| ())?;
-        //     Ok(Telecommand::config_get(args))
-        // }
-        // "config_set" => {
-        //     let (args, _rest) =
-        //         from_slice::<ConfigSetArgs>(command_args_str.as_bytes()).map_err(|_| ())?;
-        //     Ok(Telecommand::config_set(args))
-        // }
-        _ => Err(()),
+        "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
+        _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }
 
@@ -173,11 +167,32 @@ mod tests {
 
     #[test]
     fn test_parse_telecommand_invalid() {
-        assert!(matches!(parse_telecommand("PINGS"), Err(())));
-        assert!(matches!(parse_telecommand("PONGS"), Err(())));
-        assert!(matches!(parse_telecommand(""), Err(())));
-        assert!(matches!(parse_telecommand("LEDON"), Err(())));
-        assert!(matches!(parse_telecommand("LEDOFF"), Err(())));
+        assert_eq!(
+            parse_telecommand("PINGS"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("PONGS"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand(""),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("LEDON"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("LEDOFF"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("demo_command_with_arguments({invalid_json})"),
+            Err(ParsedTelecommandErr::DeserializationError(
+                serde_json_core::de::Error::KeyMustBeAString
+            ))
+        );
     }
 
     #[test]
