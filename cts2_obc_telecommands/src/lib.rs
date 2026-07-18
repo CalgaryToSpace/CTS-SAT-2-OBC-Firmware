@@ -7,13 +7,14 @@
 extern crate std;
 
 mod config;
-use config::{ConfigStore, ConfigVariableName, ConfigValue};
+use config::{ConfigStore, ConfigValue, ConfigVariableName};
 
 pub mod error;
-use error::ParsedTelecommandErr;
+use error::{ParsedTelecommandErr, ConfigError};
 
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
+use core::str::FromStr;
 
 // global static singleton for configuration
 static CONFIG_STORE: ConfigStore = ConfigStore::new();
@@ -67,9 +68,20 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        // "config_get" => {
-        //     Ok(Telecommand::config_get())
-        // }
+        "config_get" => {
+            let mut parts = command_args_str.split(',').map(|s| s.trim());
+            let name_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+            let name_enum = ConfigVariableName::from_str(name_str).map_err(|_| {
+                ParsedTelecommandErr::ConfigError(ConfigError::ConfigVariableNotFound)
+            })?;
+            if parts.next().is_some() {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+
+            Ok(Telecommand::config_get(name_enum))
+        }
         // "config_set" => {
         //     Ok(Telecommand::config_set())
         // }
