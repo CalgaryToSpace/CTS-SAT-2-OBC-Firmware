@@ -11,3 +11,11 @@ pub fn get_sys_uptime_ms_telecommand() -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(&buff);
     Ok(())
 }
+
+pub fn config_get_config_variable(name: _) -> _ {
+    todo!()
+}
+
+pub fn config_set_config_variable(name: _, value: _) -> _ {
+    todo!()
+}
