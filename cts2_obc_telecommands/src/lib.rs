@@ -7,7 +7,7 @@
 extern crate std;
 
 mod config;
-use config::ConfigStore;
+use config::{ConfigStore, ConfigVariableName, ConfigValue};
 
 pub mod error;
 use error::ParsedTelecommandErr;
@@ -42,6 +42,8 @@ pub enum Telecommand {
     hello_world, // telecommand with no args
     get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
+    config_get(ConfigVariableName),
+    config_set(ConfigVariableName, ConfigValue),
 }
 
 // TODO: Replace with meaningful telecommands
@@ -65,6 +67,12 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
+        // "config_get" => {
+        //     Ok(Telecommand::config_get())
+        // }
+        // "config_set" => {
+        //     Ok(Telecommand::config_set())
+        // }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }
@@ -72,7 +80,6 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use config::{ConfigVariableName, ConfigValue};
 
     #[test]
     fn test_config_store_get_set() {

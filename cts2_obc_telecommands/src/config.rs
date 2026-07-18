@@ -7,17 +7,32 @@
  * - Add configuration variable: config_demo_variable1
  */
 use core::sync::atomic::{AtomicU32, Ordering};
-
-// config operation errors
-// TODO: Move this into error.rs file after error handling branch is merged
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfigError {
-}
+use core::str::FromStr;
+use crate::error::ConfigError;
 
 // Global configuration store
 pub struct ConfigStore {
     heartbeat_ms: AtomicU32,
     config_demo_variable1: AtomicU32,
+}
+
+// All configuration variable names
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigVariableName {
+    HeartbeatMs,
+    ConfigDemoVariable1,
+}
+
+impl FromStr for ConfigVariableName {
+    type Err = ConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "heartbeat_ms" => Ok(ConfigVariableName::HeartbeatMs),
+            "config_demo_variable1" => Ok(ConfigVariableName::ConfigDemoVariable1),
+            _ => Err(ConfigError::ConfigVariableNotFound),
+        }
+    }
 }
 
 impl ConfigStore {
@@ -55,13 +70,6 @@ impl ConfigStore {
             }
         }
     }
-}
-
-// --- Configuration Store (snake_case for json) ---
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfigVariableName {
-    HeartbeatMs,
-    ConfigDemoVariable1,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
