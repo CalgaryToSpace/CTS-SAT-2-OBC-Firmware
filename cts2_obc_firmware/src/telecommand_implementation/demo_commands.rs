@@ -9,7 +9,9 @@ pub fn run_hello_world_telecommand() -> Result<(), ExecuteCmdErr> {
     Ok(())
 }
 
-pub fn run_demo_command_with_arguments(args: DemoCommandWithArgumentsArgs) -> Result<(), ExecuteCmdErr> {
+pub fn run_demo_command_with_arguments(
+    args: DemoCommandWithArgumentsArgs,
+) -> Result<(), ExecuteCmdErr> {
     rprintln!(
         "DemoCommandWithArgumentsArgs: arg_u32={}, arg_u64={}, arg_bool={}, arg_f32={}, arg_f64={}, arg_nullable_u32={:?}\r\n",
         args.arg_u32,

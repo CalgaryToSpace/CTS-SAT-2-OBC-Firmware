@@ -51,8 +51,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        _ => Err(ParsedTelecommandErr::UnknownCommand)
-       
+        _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }
 

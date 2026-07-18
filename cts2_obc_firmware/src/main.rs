@@ -16,10 +16,10 @@ use stm32l4xx_hal::{
     prelude::*,
 };
 
+mod error;
 mod telecommand_implementation;
 mod timekeeping;
 mod umbilical_uart;
-mod error;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 

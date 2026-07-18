@@ -4,8 +4,8 @@ use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
 use crate::error::DispatchCmdErr;
+use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -116,7 +116,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCmdErr> {
             return Err(e.into());
         }
     };
-    
+
     match cmd {
         Telecommand::hello_world => run_hello_world_telecommand()?,
         Telecommand::demo_command_with_arguments(args) => {

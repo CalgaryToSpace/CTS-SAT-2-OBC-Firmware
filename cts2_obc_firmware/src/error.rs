@@ -1,5 +1,5 @@
-use thiserror::Error;
 use cts2_obc_telecommands::error::ParsedTelecommandErr;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DispatchCmdErr {
@@ -11,5 +11,4 @@ pub enum DispatchCmdErr {
 }
 
 #[derive(Debug, Error)]
-pub enum ExecuteCmdErr {
-}
+pub enum ExecuteCmdErr {}
