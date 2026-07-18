@@ -6,7 +6,10 @@ extern crate std;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
-#[derive(Debug, Deserialize, Serialize)]
+pub mod error;
+use error::ParsedTelecommandErr;
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
     pub arg_u64: u64,
@@ -16,7 +19,7 @@ pub struct DemoCommandWithArgumentsArgs {
     pub arg_nullable_u32: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world,
@@ -26,7 +29,7 @@ pub enum Telecommand {
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
+pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
     let command_name = input.trim().split('(').next().unwrap_or("");
 
@@ -44,11 +47,11 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ()> {
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
-                    .map_err(|_| ())?;
+                    .map_err(ParsedTelecommandErr::DeserializationError)?;
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        _ => Err(()),
+        _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }
 
@@ -97,11 +100,32 @@ mod tests {
 
     #[test]
     fn test_parse_telecommand_invalid() {
-        assert!(matches!(parse_telecommand("PINGS"), Err(())));
-        assert!(matches!(parse_telecommand("PONGS"), Err(())));
-        assert!(matches!(parse_telecommand(""), Err(())));
-        assert!(matches!(parse_telecommand("LEDON"), Err(())));
-        assert!(matches!(parse_telecommand("LEDOFF"), Err(())));
+        assert_eq!(
+            parse_telecommand("PINGS"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("PONGS"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand(""),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("LEDON"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("LEDOFF"),
+            Err(ParsedTelecommandErr::UnknownCommand)
+        );
+        assert_eq!(
+            parse_telecommand("demo_command_with_arguments({invalid_json})"),
+            Err(ParsedTelecommandErr::DeserializationError(
+                serde_json_core::de::Error::KeyMustBeAString
+            ))
+        );
     }
 
     #[test]
