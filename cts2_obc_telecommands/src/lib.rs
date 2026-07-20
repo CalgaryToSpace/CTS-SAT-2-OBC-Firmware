@@ -6,7 +6,7 @@
 #[cfg(test)]
 extern crate std;
 
-mod config;
+pub mod config;
 use config::{ConfigStore, ConfigValue, ConfigVariableName};
 
 pub mod error;
