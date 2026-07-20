@@ -1,5 +1,5 @@
-use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use core::fmt::Write;
+use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;

@@ -1,14 +1,14 @@
+use crate::error::ConfigError;
+use core::str::FromStr;
 /**
  * - Enum of all configuration variable names.
  * - Struct that we create a global static singleton that contains all variable names.
- * - Create a getter and a setter telecommand (getter arg: name of variable, 
+ * - Create a getter and a setter telecommand (getter arg: name of variable,
  *   setter arg: name of variable, value)
  * - Add configuration variable: heartbeat in ms (for testing to start)
  * - Add configuration variable: config_demo_variable1
  */
 use core::sync::atomic::{AtomicU32, Ordering};
-use core::str::FromStr;
-use crate::error::ConfigError;
 
 use crate::shared;
 
@@ -51,7 +51,7 @@ impl FromStr for ConfigValue {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (value_type, value_str) = shared::extract_function_and_args(s);
-        
+
         macro_rules! parse_value {
             ($type:ty, $variant:path) => {
                 value_str
@@ -107,11 +107,5 @@ impl ConfigStore {
             }
             _ => Err(ConfigError::ConfigTypeMismatch),
         }
-    }
-}
-
-impl ConfigValue {
-    pub fn parse_from_str(s: &str) -> Result<Self, ConfigError> {
-        Err(ConfigError::ConfigValueParseError)
     }
 }
