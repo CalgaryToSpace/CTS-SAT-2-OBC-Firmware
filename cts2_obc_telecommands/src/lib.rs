@@ -12,6 +12,9 @@ use config::{ConfigStore, ConfigValue, ConfigVariableName};
 pub mod error;
 use error::{ParsedTelecommandErr, ConfigError};
 
+mod shared;
+use shared::extract_function_and_args;
+
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 use core::str::FromStr;
@@ -51,14 +54,9 @@ pub enum Telecommand {
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
 pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
-    let command_name = input.trim().split('(').next().unwrap_or("");
-    let command_args_str = input
-        .trim()
-        .strip_prefix(command_name)
-        .and_then(|s| s.strip_prefix('('))
-        .and_then(|s| s.strip_suffix(')'))
-        .unwrap_or("")
-        .trim();
+    let (command_name, command_args_str) = extract_function_and_args(input);
+
+    let mut parts = command_args_str.split(',').map(|s| s.trim());
     match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
         "demo_command_with_arguments" => {
@@ -69,7 +67,6 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
         "config_get" => {
-            let mut parts = command_args_str.split(',').map(|s| s.trim());
             let name_str = parts
                 .next()
                 .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
@@ -82,9 +79,18 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
 
             Ok(Telecommand::config_get(name_enum))
         }
-        // "config_set" => {
-        //     Ok(Telecommand::config_set())
-        // }
+        "config_set" => {
+            let name_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+            let name_enum = ConfigVariableName::from_str(name_str).map_err(|_| {
+                ParsedTelecommandErr::ConfigError(ConfigError::ConfigVariableNotFound)
+            })?;
+            let value_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+            Ok(Telecommand::config_set())
+        }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }

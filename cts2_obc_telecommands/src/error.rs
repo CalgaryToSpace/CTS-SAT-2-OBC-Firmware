@@ -25,4 +25,13 @@ pub enum ParsedTelecommandErr {
 pub enum ConfigError {
     #[error("Configuration variable not found")]
     ConfigVariableNotFound,
+
+    #[error("Cannot parse value for configuration variable")]
+    ConfigValueParseError,
+
+    #[error("Type mismatch (cannot parse) for configuration variable")]
+    ConfigTypeMismatch,
+
+    #[error("Unknown type for configuration variable")]
+    ConfigVariableUnknownType,
 }
