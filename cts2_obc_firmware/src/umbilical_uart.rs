@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use core::fmt::Write;
 use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
@@ -111,6 +112,17 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 }
                 ParsedTelecommandErr::DeserializationError(_) => {
                     send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
+                }
+                ParsedTelecommandErr::MissingArgument(idx) => {
+                    let mut msg = heapless::String::<64>::new();
+                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
+                    send_umbilical_uart(msg.as_bytes());
+                }
+                ParsedTelecommandErr::ExceededArgumentCount => {
+                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
+                }
+                ParsedTelecommandErr::ConfigError(_) => {
+                    send_umbilical_uart(b"ERR: configuration error\r\n");
                 }
             }
             return Err(e.into());
