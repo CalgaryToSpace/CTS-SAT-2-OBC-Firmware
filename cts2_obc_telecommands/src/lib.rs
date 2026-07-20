@@ -10,14 +10,14 @@ mod config;
 use config::{ConfigStore, ConfigValue, ConfigVariableName};
 
 pub mod error;
-use error::{ParsedTelecommandErr, ConfigError};
+use error::{ConfigError, ParsedTelecommandErr};
 
 mod shared;
 use shared::extract_function_and_args;
 
+use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
-use core::str::FromStr;
 
 // global static singleton for configuration
 static CONFIG_STORE: ConfigStore = ConfigStore::new();
@@ -83,13 +83,16 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             let name_str = parts
                 .next()
                 .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
-            let name_enum = ConfigVariableName::from_str(name_str).map_err(|_| {
-                ParsedTelecommandErr::ConfigError(ConfigError::ConfigVariableNotFound)
-            })?;
+            let name_enum = ConfigVariableName::from_str(name_str)
+                .map_err(ParsedTelecommandErr::ConfigError)?;
+
             let value_str = parts
                 .next()
                 .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
-            Ok(Telecommand::config_set())
+            let value_enum =
+                ConfigValue::from_str(value_str).map_err(ParsedTelecommandErr::ConfigError)?;
+
+            Ok(Telecommand::config_set(name_enum, value_enum))
         }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }

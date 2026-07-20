@@ -51,27 +51,22 @@ impl FromStr for ConfigValue {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (value_type, value_str) = shared::extract_function_and_args(s);
+        
+        macro_rules! parse_value {
+            ($type:ty, $variant:path) => {
+                value_str
+                    .parse::<$type>()
+                    .map($variant)
+                    .map_err(|_| ConfigError::ConfigTypeMismatch)
+            };
+        }
+
         match value_type {
-            "u32" => value_str
-                .parse::<u32>()
-                .map(ConfigValue::U32)
-                .map_err(|_| ConfigError::ConfigTypeMismatch),
-            "bool" => value_str
-                .parse::<bool>()
-                .map(ConfigValue::Bool)
-                .map_err(|_| ConfigError::ConfigTypeMismatch),
-            "f32" => value_str
-                .parse::<f32>()
-                .map(ConfigValue::F32)
-                .map_err(|_| ConfigError::ConfigTypeMismatch),
-            "i32" => value_str
-                .parse::<i32>()
-                .map(ConfigValue::I32)
-                .map_err(|_| ConfigError::ConfigTypeMismatch),
-            "u8" => value_str
-                .parse::<u8>()
-                .map(ConfigValue::U8)
-                .map_err(|_| ConfigError::ConfigTypeMismatch),
+            "u32" => parse_value!(u32, ConfigValue::U32),
+            "bool" => parse_value!(bool, ConfigValue::Bool),
+            "f32" => parse_value!(f32, ConfigValue::F32),
+            "i32" => parse_value!(i32, ConfigValue::I32),
+            "u8" => parse_value!(u8, ConfigValue::U8),
             _ => Err(ConfigError::ConfigVariableUnknownType),
         }
     }
