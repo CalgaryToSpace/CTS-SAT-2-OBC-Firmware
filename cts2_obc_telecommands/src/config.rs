@@ -13,6 +13,8 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use crate::shared;
 
 // Global configuration store
+// There is no float for atomic, consider
+// using AtomicU32 to store and just parse as float
 pub struct ConfigStore {
     heartbeat_ms: AtomicU32,
     config_demo_variable1: AtomicU32,
@@ -78,7 +80,7 @@ impl ConfigStore {
     pub const fn new() -> Self {
         Self {
             heartbeat_ms: AtomicU32::new(1000),
-            config_demo_variable1: AtomicU32::new(0),
+            config_demo_variable1: AtomicU32::new(123),
         }
     }
 

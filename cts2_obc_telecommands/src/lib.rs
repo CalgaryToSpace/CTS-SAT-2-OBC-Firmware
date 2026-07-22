@@ -185,6 +185,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_config_get() {
+        let result = parse_telecommand("config_get(config_demo_variable1)");
+        assert!(matches!(
+            result,
+            Ok(Telecommand::config_get(ConfigVariableName::ConfigDemoVariable1))
+        ));
+    }
+
+    #[test]
+    fn test_parse_config_set() {
+        let result = parse_telecommand("config_set(config_demo_variable1, u32(8386))");
+        assert!(matches!(
+            result,
+            Ok(Telecommand::config_set(
+                ConfigVariableName::ConfigDemoVariable1,
+                ConfigValue::U32(42)
+            ))
+        ));
+    }
+
+    #[test]
     fn test_placeholder() {
         assert_eq!(42, 42);
     }
