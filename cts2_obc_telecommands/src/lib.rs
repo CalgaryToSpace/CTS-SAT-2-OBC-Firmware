@@ -113,7 +113,7 @@ mod tests {
         );
         assert_eq!(
             store.get(ConfigVariableName::ConfigDemoVariable1),
-            ConfigValue::U32(0)
+            ConfigValue::U32(123)
         );
 
         // Test setting values
@@ -200,7 +200,7 @@ mod tests {
             result,
             Ok(Telecommand::config_set(
                 ConfigVariableName::ConfigDemoVariable1,
-                ConfigValue::U32(42)
+                ConfigValue::U32(8386)
             ))
         ));
     }
