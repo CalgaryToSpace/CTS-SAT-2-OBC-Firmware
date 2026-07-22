@@ -92,6 +92,10 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             let value_enum =
                 ConfigValue::from_str(value_str).map_err(ParsedTelecommandErr::ConfigError)?;
 
+            if parts.next().is_some() {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+
             Ok(Telecommand::config_set(name_enum, value_enum))
         }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
