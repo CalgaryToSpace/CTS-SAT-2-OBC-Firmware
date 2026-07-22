@@ -130,13 +130,19 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                             send_umbilical_uart(b"ERR: configuration variable not found\r\n");
                         }
                         ConfigError::ConfigVariableNotThisType => {
-                            send_umbilical_uart(b"ERR: configuration variable is not this type\r\n");
+                            send_umbilical_uart(
+                                b"ERR: configuration variable is not this type\r\n",
+                            );
                         }
                         ConfigError::ConfigVariableUnknownType => {
-                            send_umbilical_uart(b"ERR: unknown type for configuration variable\r\n");
+                            send_umbilical_uart(
+                                b"ERR: unknown type for configuration variable\r\n",
+                            );
                         }
                         ConfigError::ConfigParseValueTypeError => {
-                            send_umbilical_uart(b"ERR: cannot parse the type with the value string\r\n");
+                            send_umbilical_uart(
+                                b"ERR: cannot parse the type with the value string\r\n",
+                            );
                         }
                     }
                 }

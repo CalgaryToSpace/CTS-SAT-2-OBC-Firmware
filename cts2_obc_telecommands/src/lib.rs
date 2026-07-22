@@ -189,7 +189,9 @@ mod tests {
         let result = parse_telecommand("config_get(config_demo_variable1)");
         assert!(matches!(
             result,
-            Ok(Telecommand::config_get(ConfigVariableName::ConfigDemoVariable1))
+            Ok(Telecommand::config_get(
+                ConfigVariableName::ConfigDemoVariable1
+            ))
         ));
     }
 
