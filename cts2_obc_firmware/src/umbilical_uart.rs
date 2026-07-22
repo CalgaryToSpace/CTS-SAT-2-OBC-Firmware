@@ -1,6 +1,6 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_telecommands::error::ParsedTelecommandErr;
+use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
@@ -121,8 +121,24 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 ParsedTelecommandErr::ExceededArgumentCount => {
                     send_umbilical_uart(b"ERR: too many arguments provided\r\n");
                 }
-                ParsedTelecommandErr::ConfigError(_) => {
+
+                // When the errors got bigger, consider move into another function
+                ParsedTelecommandErr::ConfigError(e_conf) => {
                     send_umbilical_uart(b"ERR: configuration error\r\n");
+                    match e_conf {
+                        ConfigError::ConfigVariableNotFound => {
+                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
+                        }
+                        ConfigError::ConfigVariableNotThisType => {
+                            send_umbilical_uart(b"ERR: configuration variable is not this type\r\n");
+                        }
+                        ConfigError::ConfigVariableUnknownType => {
+                            send_umbilical_uart(b"ERR: unknown type for configuration variable\r\n");
+                        }
+                        ConfigError::ConfigParseValueTypeError => {
+                            send_umbilical_uart(b"ERR: cannot parse the type with the value string\r\n");
+                        }
+                    }
                 }
             }
             return Err(e.into());

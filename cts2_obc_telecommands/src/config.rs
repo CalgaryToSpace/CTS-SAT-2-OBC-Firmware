@@ -57,7 +57,7 @@ impl FromStr for ConfigValue {
                 value_str
                     .parse::<$type>()
                     .map($variant)
-                    .map_err(|_| ConfigError::ConfigTypeMismatch)
+                    .map_err(|_| ConfigError::ConfigParseValueTypeError)
             };
         }
 
@@ -105,7 +105,7 @@ impl ConfigStore {
                 self.config_demo_variable1.store(v, Ordering::Relaxed);
                 Ok(())
             }
-            _ => Err(ConfigError::ConfigTypeMismatch),
+            _ => Err(ConfigError::ConfigVariableNotThisType),
         }
     }
 }
