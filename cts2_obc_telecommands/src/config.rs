@@ -1,13 +1,21 @@
 use crate::error::ConfigError;
 use core::str::FromStr;
 /**
- * - Enum of all configuration variable names.
- * - Struct that we create a global static singleton that contains all variable names.
- * - Create a getter and a setter telecommand (getter arg: name of variable,
- *   setter arg: name of variable, value)
- * - Add configuration variable: heartbeat in ms (for testing to start)
- * - Add configuration variable: config_demo_variable1
- */
+* - Enum of all configuration variable names.
+* - Struct that we create a global static singleton that contains all variable names.
+* - Create a getter and a setter telecommand (getter arg: name of variable,
+*   setter arg: name of variable, value)
+* - Add configuration variable: heartbeat in ms (for testing to start)
+* - Add configuration variable: config_demo_variable1
+*
+* HOW TO ADD A NEW CONFIGURATION VARIABLE:
+* 1. Add actual variable to ConfigStore struct
+* 2. Add default value to ConfigStore::new()
+* 3. Add an enum to ConfigVariableName enum
+* 4. Add a string version to match in ConfigVariableName::from_str()
+* 5. Add a match case to ConfigStore::get()
+* 6. Add a match case to ConfigStore::set()
+*/
 use core::sync::atomic::{AtomicU32, Ordering};
 
 use crate::shared;
