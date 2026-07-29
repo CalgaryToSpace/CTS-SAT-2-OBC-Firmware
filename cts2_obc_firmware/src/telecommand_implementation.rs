@@ -17,7 +17,7 @@ pub fn get_sys_uptime_ms_telecommand() -> Result<(), ExecuteCommandErr> {
     Ok(())
 }
 
-pub fn config_get_config_variable(name: ConfigVariableName) -> Result<(), ExecuteCommandErr> {
+pub fn get_config_variable(name: ConfigVariableName) -> Result<(), ExecuteCommandErr> {
     let config_store = get_config_store();
     let value = config_store.get(name);
 
@@ -28,7 +28,7 @@ pub fn config_get_config_variable(name: ConfigVariableName) -> Result<(), Execut
     Ok(())
 }
 
-pub fn config_set_config_variable(
+pub fn set_config_variable(
     name: ConfigVariableName,
     value: ConfigValue,
 ) -> Result<(), ExecuteCommandErr> {

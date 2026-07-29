@@ -159,11 +159,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
         Telecommand::get_sys_uptime => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
         }
-        Telecommand::config_get(name) => {
-            crate::telecommand_implementation::config_get_config_variable(name)?
+        Telecommand::get_config(name) => {
+            crate::telecommand_implementation::get_config_variable(name)?
         }
-        Telecommand::config_set(name, value) => {
-            crate::telecommand_implementation::config_set_config_variable(name, value)?
+        Telecommand::set_config(name, value) => {
+            crate::telecommand_implementation::set_config_variable(name, value)?
         }
     };
 

@@ -46,8 +46,8 @@ pub enum Telecommand {
     hello_world, // telecommand with no args
     get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
-    config_get(ConfigVariableName),
-    config_set(ConfigVariableName, ConfigValue),
+    get_config(ConfigVariableName),
+    set_config(ConfigVariableName, ConfigValue),
 }
 
 // TODO: Replace with meaningful telecommands
@@ -66,7 +66,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        "config_get" => {
+        "get_config" => {
             let name_str = parts
                 .next()
                 .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
@@ -77,9 +77,9 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
             }
 
-            Ok(Telecommand::config_get(name_enum))
+            Ok(Telecommand::get_config(name_enum))
         }
-        "config_set" => {
+        "set_config" => {
             let name_str = parts
                 .next()
                 .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
@@ -96,7 +96,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
             }
 
-            Ok(Telecommand::config_set(name_enum, value_enum))
+            Ok(Telecommand::set_config(name_enum, value_enum))
         }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
@@ -189,22 +189,22 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_config_get() {
-        let result = parse_telecommand("config_get(config_demo_variable1)");
+    fn test_parse_get_config() {
+        let result = parse_telecommand("get_config(config_demo_variable1)");
         assert!(matches!(
             result,
-            Ok(Telecommand::config_get(
+            Ok(Telecommand::get_config(
                 ConfigVariableName::ConfigDemoVariable1
             ))
         ));
     }
 
     #[test]
-    fn test_parse_config_set() {
-        let result = parse_telecommand("config_set(config_demo_variable1, u32(8386))");
+    fn test_parse_set_config() {
+        let result = parse_telecommand("set_config(config_demo_variable1, u32(8386))");
         assert!(matches!(
             result,
-            Ok(Telecommand::config_set(
+            Ok(Telecommand::set_config(
                 ConfigVariableName::ConfigDemoVariable1,
                 ConfigValue::U32(8386)
             ))
