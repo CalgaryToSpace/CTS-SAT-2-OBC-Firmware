@@ -1,14 +1,33 @@
+// Use Mutex to safely share peripherals across tasks/interrupt?
+// Implement critical sections for safe access to shared resources?
+
 #![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]
 extern crate std;
 
+pub mod config;
+use config::{ConfigStore, ConfigValue, ConfigVariableName};
+
+pub mod error;
+use error::{ConfigError, ParsedTelecommandErr};
+
+mod shared;
+use shared::extract_function_and_args;
+
+use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
-pub mod error;
-use error::ParsedTelecommandErr;
+// global static singleton for configuration
+static CONFIG_STORE: ConfigStore = ConfigStore::new();
 
+// get reference to the global configuration store
+pub fn get_config_store() -> &'static ConfigStore {
+    &CONFIG_STORE
+}
+
+// --- Existing Telecommand Code ---
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct DemoCommandWithArgumentsArgs {
     pub arg_u32: u32,
@@ -19,30 +38,26 @@ pub struct DemoCommandWithArgumentsArgs {
     pub arg_nullable_u32: Option<u32>,
 }
 
+// TODO:Add more args for other telecommands as needed
+
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
-    hello_world,
+    hello_world, // telecommand with no args
     get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
+    get_config(ConfigVariableName),
+    set_config(ConfigVariableName, ConfigValue),
 }
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
 pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
-    let command_name = input.trim().split('(').next().unwrap_or("");
+    let (command_name, command_args_str) = extract_function_and_args(input);
 
-    // Extract arguments string between parentheses, if any.
-    let command_args_str = input
-        .trim()
-        .strip_prefix(command_name)
-        .and_then(|s| s.strip_prefix('('))
-        .and_then(|s| s.strip_suffix(')'))
-        .unwrap_or("")
-        .trim();
-
-    match command_name.trim() {
+    let mut parts = command_args_str.split(',').map(|s| s.trim());
+    match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
         "demo_command_with_arguments" => {
             let (args, _rest) =
@@ -51,6 +66,38 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
             Ok(Telecommand::demo_command_with_arguments(args))
         }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
+        "get_config" => {
+            let name_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+            let name_enum = ConfigVariableName::from_str(name_str).map_err(|_| {
+                ParsedTelecommandErr::ConfigError(ConfigError::ConfigVariableNotFound)
+            })?;
+            if parts.next().is_some() {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+
+            Ok(Telecommand::get_config(name_enum))
+        }
+        "set_config" => {
+            let name_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+            let name_enum = ConfigVariableName::from_str(name_str)
+                .map_err(ParsedTelecommandErr::ConfigError)?;
+
+            let value_str = parts
+                .next()
+                .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+            let value_enum =
+                ConfigValue::from_str(value_str).map_err(ParsedTelecommandErr::ConfigError)?;
+
+            if parts.next().is_some() {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+
+            Ok(Telecommand::set_config(name_enum, value_enum))
+        }
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }
@@ -58,6 +105,111 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_config_store_get_set() {
+        let store = ConfigStore::new();
+
+        // Test default values
+        assert_eq!(
+            store.get(ConfigVariableName::HeartbeatMs),
+            ConfigValue::U32(1000)
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::ConfigDemoVariable1),
+            ConfigValue::U32(123)
+        );
+
+        // Test setting values
+        assert!(
+            store
+                .set(ConfigVariableName::HeartbeatMs, ConfigValue::U32(2000))
+                .is_ok()
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::HeartbeatMs),
+            ConfigValue::U32(2000)
+        );
+
+        assert!(
+            store
+                .set(
+                    ConfigVariableName::ConfigDemoVariable1,
+                    ConfigValue::U32(42)
+                )
+                .is_ok()
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::ConfigDemoVariable1),
+            ConfigValue::U32(42)
+        );
+    }
+
+    #[test]
+    fn test_config_store_set_type_mismatch() {
+        let store = ConfigStore::new();
+
+        let result = store.set(
+            ConfigVariableName::ConfigDemoVariable1,
+            ConfigValue::F32(42.0),
+        );
+
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotThisType));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_variable() {
+        let result = ConfigVariableName::from_str("unknown_variable");
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotFound));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_type() {
+        let result = ConfigValue::from_str("unknown_type(42)");
+        assert_eq!(result, Err(ConfigError::ConfigVariableUnknownType));
+    }
+
+    #[test]
+    fn test_config_store_parse_invalid_value() {
+        let result = ConfigValue::from_str("u32(not_a_number)");
+        assert_eq!(result, Err(ConfigError::ConfigParseValueTypeError));
+    }
+
+    #[test]
+    fn test_global_config_store() {
+        let store = get_config_store();
+
+        store
+            .set(ConfigVariableName::HeartbeatMs, ConfigValue::U32(500))
+            .unwrap();
+        assert_eq!(
+            store.get(ConfigVariableName::HeartbeatMs),
+            ConfigValue::U32(500)
+        );
+    }
+
+    #[test]
+    fn test_parse_get_config() {
+        let result = parse_telecommand("get_config(config_demo_variable1)");
+        assert!(matches!(
+            result,
+            Ok(Telecommand::get_config(
+                ConfigVariableName::ConfigDemoVariable1
+            ))
+        ));
+    }
+
+    #[test]
+    fn test_parse_set_config() {
+        let result = parse_telecommand("set_config(config_demo_variable1, u32(8386))");
+        assert!(matches!(
+            result,
+            Ok(Telecommand::set_config(
+                ConfigVariableName::ConfigDemoVariable1,
+                ConfigValue::U32(8386)
+            ))
+        ));
+    }
 
     #[test]
     fn test_placeholder() {
@@ -130,7 +282,6 @@ mod tests {
 
     #[test]
     fn test_parse_json() {
-        // Note: This is mostly a test of the serde_json_core library functionality.
         let json_data = r#"
         {
             "arg_u32": 123,
@@ -164,7 +315,6 @@ mod tests {
             Ok(Telecommand::demo_command_with_arguments(_))
         ));
 
-        // Validate the parts inside the struct.
         assert!(
             if let Ok(Telecommand::demo_command_with_arguments(args)) = result {
                 args.arg_u32 == 123
