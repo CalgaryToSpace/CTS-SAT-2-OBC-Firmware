@@ -5,10 +5,10 @@ use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
+use crate::error::DispatchCommandErr;
 use crate::scheduler_instance::SCHEDULER;
 use cortex_m::interrupt::free as critical_section;
 use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
-use crate::error::DispatchCommandErr;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -214,7 +214,6 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
                 scheduler.add_task(task, Priority::Medium).ok();
             });
-
         }
 
         Telecommand::set_config(name, value) => {

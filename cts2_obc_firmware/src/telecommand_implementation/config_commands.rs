@@ -1,6 +1,6 @@
+use core::fmt::Write;
 use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
 use cts2_obc_telecommands::get_config_store;
-use core::fmt::Write;
 
 use crate::error::ExecuteCommandErr;
 use crate::umbilical_uart::send_umbilical_uart;

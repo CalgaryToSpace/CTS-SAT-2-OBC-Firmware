@@ -125,6 +125,7 @@ name = "cts2_obc_logic"
 version = "0.1.0"
 dependencies = [
  "cts2_obc_telecommands",
+ "thiserror",
 ]
 
 [[package]]

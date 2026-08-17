@@ -1,3 +1,4 @@
+use crate::error::SchedulerError;
 use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,14 +19,7 @@ pub enum TaskArgs {
     TwoU32(u32, u32),
 
     GetConfig(ConfigVariableName),
-    SetConfig(ConfigVariableName, ConfigValue)
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SchedulerError {
-    QueueFull,
-    InvalidPriority,
-    NoTasksAvailable,
+    SetConfig(ConfigVariableName, ConfigValue),
 }
 
 pub type TaskFn = fn(TaskArgs);

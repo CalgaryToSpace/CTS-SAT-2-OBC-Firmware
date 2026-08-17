@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 extern crate std;
+pub mod error;
 pub mod scheduler;
 
 // TODO: Remove this placeholder function and add testable logic parts in here.
