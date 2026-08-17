@@ -1,4 +1,6 @@
+use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
@@ -6,6 +8,8 @@ use stm32l4xx_hal::{self as stm32_hal};
 use crate::scheduler_instance::SCHEDULER;
 use cortex_m::interrupt::free as critical_section;
 use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
+use crate::error::DispatchCommandErr;
+use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -107,10 +111,57 @@ pub fn process_umbilical_commands() {
 // TODO: Make different functions to handle each separate command.
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
-    let cmd = parse_telecommand(cmd_str);
+fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
+    let cmd = match parse_telecommand(cmd_str) {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            match e {
+                ParsedTelecommandErr::UnknownCommand => {
+                    send_umbilical_uart(b"ERR: unknown command\r\n");
+                }
+                ParsedTelecommandErr::DeserializationError(_) => {
+                    send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
+                }
+                ParsedTelecommandErr::MissingArgument(idx) => {
+                    let mut msg = heapless::String::<64>::new();
+                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
+                    send_umbilical_uart(msg.as_bytes());
+                }
+                ParsedTelecommandErr::ExceededArgumentCount => {
+                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
+                }
+
+                // When the errors got bigger, consider move into another function
+                ParsedTelecommandErr::ConfigError(e_conf) => {
+                    send_umbilical_uart(b"ERR: configuration error\r\n");
+                    match e_conf {
+                        ConfigError::ConfigVariableNotFound => {
+                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
+                        }
+                        ConfigError::ConfigVariableNotThisType => {
+                            send_umbilical_uart(
+                                b"ERR: configuration variable is not this type\r\n",
+                            );
+                        }
+                        ConfigError::ConfigVariableUnknownType => {
+                            send_umbilical_uart(
+                                b"ERR: unknown type for configuration variable\r\n",
+                            );
+                        }
+                        ConfigError::ConfigParseValueTypeError => {
+                            send_umbilical_uart(
+                                b"ERR: cannot parse the type with the value string\r\n",
+                            );
+                        }
+                    }
+                }
+            }
+            return Err(e.into());
+        }
+    };
+
     match cmd {
-        Ok(Telecommand::hello_world) => {
+        Telecommand::hello_world => {
             let task = Task {
                 name: "hello_world",
                 execute: crate::telecommand_implementation::telecommand_hello_world,
@@ -121,9 +172,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
                 scheduler.add_task(task, Priority::Medium).ok();
             });
-            Ok(())
         }
-        Ok(Telecommand::demo_command_with_arguments(args)) => {
+
+        Telecommand::demo_command_with_arguments(args) => {
             critical_section(|cs| {
                 crate::telecommand_implementation::demo_commands::DEMO_ARGS
                     .borrow(cs)
@@ -140,8 +191,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 scheduler.add_task(task, Priority::Medium).ok();
             });
             Ok(())
+
         }
-        Ok(Telecommand::get_sys_uptime) => {
+        Telecommand::get_sys_uptime => {
             let task = Task {
                 name: "get_sys_uptime",
                 execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
@@ -152,13 +204,18 @@ fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
                 scheduler.add_task(task, Priority::Medium).ok();
             });
-            Ok(())
         }
-        Err(e) => {
-            send_umbilical_uart(b"ERR: unknown command\r\n");
-            Err(e)
+
+        // TODO: Change this to task and add to scheduler
+        Telecommand::get_config(name) => {
+            crate::telecommand_implementation::get_config_variable(name)?
         }
-    }
+        Telecommand::set_config(name, value) => {
+            crate::telecommand_implementation::set_config_variable(name, value)?
+        }
+    };
+
+    Ok(())
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).

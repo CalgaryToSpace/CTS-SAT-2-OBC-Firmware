@@ -3,18 +3,20 @@ use cortex_m::interrupt::Mutex;
 use cts2_obc_telecommands::DemoCommandWithArgumentsArgs;
 use rtt_target::rprintln;
 
-use crate::umbilical_uart::send_umbilical_uart;
+use crate::{error::ExecuteCommandErr, umbilical_uart::send_umbilical_uart};
 
 pub static DEMO_ARGS: Mutex<RefCell<Option<DemoCommandWithArgumentsArgs>>> =
     Mutex::new(RefCell::new(None));
 
-pub fn run_hello_world_telecommand() -> Result<(), ()> {
+pub fn run_hello_world_telecommand() -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(b"HELLO WORLD\r\n");
 
     Ok(())
 }
 
-pub fn run_demo_command_with_arguments(args: DemoCommandWithArgumentsArgs) -> Result<(), ()> {
+pub fn run_demo_command_with_arguments(
+    args: DemoCommandWithArgumentsArgs,
+) -> Result<(), ExecuteCommandErr> {
     rprintln!(
         "DemoCommandWithArgumentsArgs: arg_u32={}, arg_u64={}, arg_bool={}, arg_f32={}, arg_f64={}, arg_nullable_u32={:?}\r\n",
         args.arg_u32,
