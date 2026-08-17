@@ -1,3 +1,5 @@
+use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
     High = 4,
@@ -14,6 +16,9 @@ pub enum TaskArgs {
     None,
     Message(&'static str),
     TwoU32(u32, u32),
+
+    GetConfig(ConfigVariableName),
+    SetConfig(ConfigVariableName, ConfigValue)
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

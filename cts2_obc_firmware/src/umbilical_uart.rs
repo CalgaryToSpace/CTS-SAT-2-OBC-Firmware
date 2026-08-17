@@ -9,7 +9,6 @@ use crate::scheduler_instance::SCHEDULER;
 use cortex_m::interrupt::free as critical_section;
 use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
 use crate::error::DispatchCommandErr;
-use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -190,8 +189,6 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
                 scheduler.add_task(task, Priority::Medium).ok();
             });
-            Ok(())
-
         }
         Telecommand::get_sys_uptime => {
             let task = Task {
@@ -206,12 +203,31 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
             });
         }
 
-        // TODO: Change this to task and add to scheduler
         Telecommand::get_config(name) => {
-            crate::telecommand_implementation::get_config_variable(name)?
+            let task = Task {
+                name: "get_config",
+                execute: crate::telecommand_implementation::telecommand_get_config_variable,
+                args: TaskArgs::GetConfig(name),
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
+            });
+
         }
+
         Telecommand::set_config(name, value) => {
-            crate::telecommand_implementation::set_config_variable(name, value)?
+            let task = Task {
+                name: "set_config",
+                execute: crate::telecommand_implementation::telecommand_set_config_variable,
+                args: TaskArgs::SetConfig(name, value),
+                priority: Priority::Medium,
+            };
+            critical_section(|cs| {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task, Priority::Medium).ok();
+            });
         }
     };
 
