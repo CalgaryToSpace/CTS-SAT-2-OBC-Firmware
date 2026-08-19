@@ -1,5 +1,6 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_logic::error::SchedulerError;
 use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
@@ -95,7 +96,16 @@ pub fn process_umbilical_commands() {
                     rprintln!("CMD: {}", trimmed);
                     match dispatch_command(trimmed) {
                         Ok(_) => rprintln!("Command executed successfully"),
-                        Err(_) => rprintln!("Command execution failed"),
+                        Err(e) => {
+                            match e {
+                                DispatchCommandErr::Scheduler(e_sched) => {
+                                    rprintln!("Scheduler error: {:?}", e_sched);
+                                }
+                                DispatchCommandErr::ParsedTelecommand(e_parse) => {
+                                    rprintln!("Parsed telecommand error: {:?}", e_parse);
+                                }
+                            }
+                        }
                     }
                 }
                 idx = 0;
@@ -167,10 +177,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 args: TaskArgs::None,
                 priority: Priority::Medium,
             };
-            critical_section(|cs| {
+            critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task, Priority::Medium).ok();
-            });
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
 
         Telecommand::demo_command_with_arguments(args) => {
@@ -185,10 +196,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 args: TaskArgs::None,
                 priority: Priority::Medium,
             };
-            critical_section(|cs| {
+            critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task, Priority::Medium).ok();
-            });
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
         Telecommand::get_sys_uptime => {
             let task = Task {
@@ -197,10 +209,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 args: TaskArgs::None,
                 priority: Priority::Medium,
             };
-            critical_section(|cs| {
+            critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task, Priority::Medium).ok();
-            });
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
 
         Telecommand::get_config(name) => {
@@ -210,10 +223,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 args: TaskArgs::GetConfig(name),
                 priority: Priority::Medium,
             };
-            critical_section(|cs| {
+            critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task, Priority::Medium).ok();
-            });
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
 
         Telecommand::set_config(name, value) => {
@@ -223,10 +237,11 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 args: TaskArgs::SetConfig(name, value),
                 priority: Priority::Medium,
             };
-            critical_section(|cs| {
+            critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task, Priority::Medium).ok();
-            });
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
     };
 

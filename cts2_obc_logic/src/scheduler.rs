@@ -122,10 +122,8 @@ impl Scheduler {
         }
     }
 
-    pub fn add_task(&mut self, mut task: Task, priority: Priority) -> Result<(), SchedulerError> {
-        task.priority = priority;
-
-        match priority {
+    pub fn add_task(&mut self, task: Task) -> Result<(), SchedulerError> {
+        match task.priority {
             Priority::High => {
                 if self.count_high == TOTAL_TASKS {
                     return Err(SchedulerError::QueueFull); // Queue is full
