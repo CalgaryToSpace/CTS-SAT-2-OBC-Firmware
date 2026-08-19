@@ -96,16 +96,14 @@ pub fn process_umbilical_commands() {
                     rprintln!("CMD: {}", trimmed);
                     match dispatch_command(trimmed) {
                         Ok(_) => rprintln!("Command executed successfully"),
-                        Err(e) => {
-                            match e {
-                                DispatchCommandErr::Scheduler(e_sched) => {
-                                    rprintln!("Scheduler error: {:?}", e_sched);
-                                }
-                                DispatchCommandErr::ParsedTelecommand(e_parse) => {
-                                    rprintln!("Parsed telecommand error: {:?}", e_parse);
-                                }
+                        Err(e) => match e {
+                            DispatchCommandErr::Scheduler(e_sched) => {
+                                rprintln!("Scheduler error: {:?}", e_sched);
                             }
-                        }
+                            DispatchCommandErr::ParsedTelecommand(e_parse) => {
+                                rprintln!("Parsed telecommand error: {:?}", e_parse);
+                            }
+                        },
                     }
                 }
                 idx = 0;
@@ -141,29 +139,22 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 }
 
                 // When the errors got bigger, consider move into another function
-                ParsedTelecommandErr::ConfigError(e_conf) => {
-                    send_umbilical_uart(b"ERR: configuration error\r\n");
-                    match e_conf {
-                        ConfigError::ConfigVariableNotFound => {
-                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
-                        }
-                        ConfigError::ConfigVariableNotThisType => {
-                            send_umbilical_uart(
-                                b"ERR: configuration variable is not this type\r\n",
-                            );
-                        }
-                        ConfigError::ConfigVariableUnknownType => {
-                            send_umbilical_uart(
-                                b"ERR: unknown type for configuration variable\r\n",
-                            );
-                        }
-                        ConfigError::ConfigParseValueTypeError => {
-                            send_umbilical_uart(
-                                b"ERR: cannot parse the type with the value string\r\n",
-                            );
-                        }
+                ParsedTelecommandErr::ConfigError(e_conf) => match e_conf {
+                    ConfigError::ConfigVariableNotFound => {
+                        send_umbilical_uart(b"ERR: configuration variable not found\r\n");
                     }
-                }
+                    ConfigError::ConfigVariableNotThisType => {
+                        send_umbilical_uart(b"ERR: configuration variable is not this type\r\n");
+                    }
+                    ConfigError::ConfigVariableUnknownType => {
+                        send_umbilical_uart(b"ERR: unknown type for configuration variable\r\n");
+                    }
+                    ConfigError::ConfigParseValueTypeError => {
+                        send_umbilical_uart(
+                            b"ERR: cannot parse the type with the value string\r\n",
+                        );
+                    }
+                },
             }
             return Err(e.into());
         }
