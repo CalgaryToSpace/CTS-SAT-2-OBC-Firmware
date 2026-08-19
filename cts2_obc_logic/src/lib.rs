@@ -54,7 +54,7 @@ mod tests {
             args: scheduler::TaskArgs::Message("Executing test task"),
             priority: scheduler::Priority::High,
         };
-        assert!(sched.add_task(task, scheduler::Priority::High).is_ok());
+        assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
     }
 
@@ -79,8 +79,8 @@ mod tests {
             args: scheduler::TaskArgs::Message("Executing high priority task"),
             priority: scheduler::Priority::High,
         };
-        assert!(sched.add_task(low_task, scheduler::Priority::Low).is_ok());
-        assert!(sched.add_task(high_task, scheduler::Priority::High).is_ok());
+        assert!(sched.add_task(low_task).is_ok());
+        assert!(sched.add_task(high_task).is_ok());
         // High priority task should run first
         assert!(
             sched
@@ -104,7 +104,7 @@ mod tests {
             args: scheduler::TaskArgs::TwoU32(42, 7),
             priority: scheduler::Priority::Medium,
         };
-        assert!(sched.add_task(task, scheduler::Priority::Medium).is_ok());
+        assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
     }
 
@@ -118,7 +118,7 @@ mod tests {
                 args: scheduler::TaskArgs::Message("Filling queue"),
                 priority: scheduler::Priority::Debug,
             };
-            assert!(sched.add_task(task, scheduler::Priority::Debug).is_ok());
+            assert!(sched.add_task(task).is_ok());
         }
         // Now the queue should be full
         let extra_task = scheduler::Task {
@@ -127,10 +127,6 @@ mod tests {
             args: scheduler::TaskArgs::Message("This should fail"),
             priority: scheduler::Priority::Debug,
         };
-        assert!(
-            sched
-                .add_task(extra_task, scheduler::Priority::Debug)
-                .is_err()
-        );
+        assert!(sched.add_task(extra_task).is_err());
     }
 }
