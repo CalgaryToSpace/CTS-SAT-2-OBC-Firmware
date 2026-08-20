@@ -53,6 +53,7 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing test task"),
             priority: scheduler::Priority::High,
+            tsexec: 0,
         };
         assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
@@ -72,12 +73,14 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing low priority task"),
             priority: scheduler::Priority::Low,
+            tsexec: 0,
         };
         let high_task = scheduler::Task {
             name: "High Priority Task",
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing high priority task"),
             priority: scheduler::Priority::High,
+            tsexec: 0,
         };
         assert!(sched.add_task(low_task).is_ok());
         assert!(sched.add_task(high_task).is_ok());
@@ -103,6 +106,7 @@ mod tests {
             execute: test_sum_task,
             args: scheduler::TaskArgs::TwoU32(42, 7),
             priority: scheduler::Priority::Medium,
+            tsexec: 0,
         };
         assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
@@ -117,6 +121,7 @@ mod tests {
                 execute: test_print_task,
                 args: scheduler::TaskArgs::Message("Filling queue"),
                 priority: scheduler::Priority::Debug,
+                tsexec: 0,
             };
             assert!(sched.add_task(task).is_ok());
         }
@@ -126,6 +131,7 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("This should fail"),
             priority: scheduler::Priority::Debug,
+            tsexec: 0,
         };
         assert!(sched.add_task(extra_task).is_err());
     }

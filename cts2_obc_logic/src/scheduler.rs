@@ -24,12 +24,16 @@ pub enum TaskArgs {
 
 pub type TaskFn = fn(TaskArgs);
 
+// Unix timestamp of scheduled execution time, in ms seconds since the epoch
+pub type UnixTimestamp = u32;
+
 #[derive(Debug, Copy, Clone)]
 pub struct Task {
     pub name: &'static str,
     pub execute: TaskFn,
     pub args: TaskArgs,
     pub priority: Priority,
+    pub tsexec: UnixTimestamp,
 }
 impl Task {
     pub fn new() -> Self {
@@ -38,6 +42,7 @@ impl Task {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
+            tsexec: 0,
         }
     }
 }
@@ -74,6 +79,7 @@ impl Scheduler {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
+            tsexec: 0,
         };
         Scheduler {
             high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
@@ -101,6 +107,7 @@ impl Scheduler {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
+            tsexec: 0,
         };
         Scheduler {
             high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],

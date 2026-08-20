@@ -167,6 +167,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_hello_world,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
+                tsexec: 0,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -186,6 +187,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_demo_command_with_arguments,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
+                tsexec: 0,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -199,6 +201,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
+                tsexec: 0,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -213,6 +216,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_get_config_variable,
                 args: TaskArgs::GetConfig(name),
                 priority: Priority::Medium,
+                tsexec: 0,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -227,6 +231,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_set_config_variable,
                 args: TaskArgs::SetConfig(name, value),
                 priority: Priority::Medium,
+                tsexec: 0,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
