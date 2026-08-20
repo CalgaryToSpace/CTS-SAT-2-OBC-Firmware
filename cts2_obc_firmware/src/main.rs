@@ -145,6 +145,11 @@ fn entry_point() -> ! {
         // Run scheduled tasks
         critical_section(|cs| {
             let mut scheduler = crate::scheduler_instance::SCHEDULER.borrow(cs).borrow_mut();
+
+            // TODO: Need a time synchronization to know the current time
+            // in unix epoch milliseconds. Now it just release all scheduled
+            scheduler.release_task(0);
+
             while scheduler.run_next_task().is_ok() {
                 // Run all available tasks
             }

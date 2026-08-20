@@ -1,5 +1,7 @@
 use crate::error::SchedulerError;
-use cts2_obc_telecommands::{UnixTimestampMs, config::{ConfigValue, ConfigVariableName}};
+use cts2_obc_telecommands::{
+    EXECUTE_IMMEDIATELY, UnixTimestampMs, config::{ConfigValue, ConfigVariableName}
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
@@ -11,6 +13,7 @@ pub enum Priority {
 }
 
 const TOTAL_TASKS: usize = 256;
+const DELAYED_TASKS: usize = 256;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TaskArgs {
@@ -51,6 +54,7 @@ impl Default for Task {
 }
 
 pub struct Scheduler {
+    delayed_tasks: [Task; DELAYED_TASKS],
     high_level_tasks: [Task; TOTAL_TASKS],
     medium_level_tasks: [Task; TOTAL_TASKS],
     low_level_tasks: [Task; TOTAL_TASKS],
@@ -79,6 +83,7 @@ impl Scheduler {
             tsexec: 0,
         };
         Scheduler {
+            delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
             high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
             medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
             low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
@@ -107,6 +112,7 @@ impl Scheduler {
             tsexec: 0,
         };
         Scheduler {
+            delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
             high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
             medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
             low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
@@ -126,7 +132,30 @@ impl Scheduler {
         }
     }
 
+    pub fn release_task(&mut self, unix_ms_ts: UnixTimestampMs) {
+        for i in 0..DELAYED_TASKS {
+            let task = self.delayed_tasks[i];
+            if task.priority == Priority::None
+                && task.tsexec <= unix_ms_ts
+                && self.add_task(task).is_ok()
+            {
+                self.delayed_tasks[i] = Task::new();
+            }
+        }
+    }
+
     pub fn add_task(&mut self, task: Task) -> Result<(), SchedulerError> {
+        // Scheduled tasks
+        if task.tsexec != EXECUTE_IMMEDIATELY {
+            for i in 0..DELAYED_TASKS {
+                if self.delayed_tasks[i].priority == Priority::None {
+                    self.delayed_tasks[i] = task;
+                    return Ok(());
+                }
+            }
+            return Err(SchedulerError::QueueFull);
+        }
+
         match task.priority {
             Priority::High => {
                 if self.count_high == TOTAL_TASKS {

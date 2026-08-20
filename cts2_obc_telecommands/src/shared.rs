@@ -1,4 +1,4 @@
-use crate::{UnixTimestampMs, error::ParsedTelecommandErr};
+use crate::{EXECUTE_IMMEDIATELY, UnixTimestampMs, error::ParsedTelecommandErr};
 
 pub struct ParsedTelecommand<'a> {
     pub command_name: &'a str,
@@ -25,7 +25,7 @@ pub fn extract_function_args_tags<'a>(
     };
 
     // Parse tags
-    let mut tsexec_parsed: UnixTimestampMs = 0;
+    let mut tsexec_parsed: UnixTimestampMs = EXECUTE_IMMEDIATELY;
     for (i, _) in input.match_indices('@') {
         let left = &input[i + 1..];
         if let Some(end) = left.find('=') {

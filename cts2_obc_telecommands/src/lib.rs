@@ -52,6 +52,7 @@ pub enum Telecommand {
 
 // Unix timestamp of scheduled execution time, in ms seconds since the epoch
 pub type UnixTimestampMs = u64;
+pub const EXECUTE_IMMEDIATELY: UnixTimestampMs = 0;
 
 #[derive(Debug, PartialEq)]
 pub struct ParsedTelecommand {
