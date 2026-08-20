@@ -148,7 +148,7 @@ fn entry_point() -> ! {
 
             // TODO: Need a time synchronization to know the current time
             // in unix epoch milliseconds. Now it just release all scheduled
-            scheduler.release_task(0);
+            scheduler.release_task(u64::MAX);
 
             while scheduler.run_next_task().is_ok() {
                 // Run all available tasks

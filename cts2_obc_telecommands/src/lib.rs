@@ -57,7 +57,7 @@ pub const EXECUTE_IMMEDIATELY: UnixTimestampMs = 0;
 #[derive(Debug, PartialEq)]
 pub struct ParsedTelecommand {
     pub command: Telecommand,
-    pub tsexec: UnixTimestampMs
+    pub tsexec: UnixTimestampMs,
 }
 
 // TODO: Replace with meaningful telecommands
@@ -211,9 +211,7 @@ mod tests {
         let result = parse_telecommand("get_config(config_demo_variable1)").unwrap();
         assert!(matches!(
             result.command,
-            Telecommand::get_config(
-                ConfigVariableName::ConfigDemoVariable1
-            )
+            Telecommand::get_config(ConfigVariableName::ConfigDemoVariable1)
         ));
     }
 
@@ -242,10 +240,7 @@ mod tests {
         ));
 
         let result = parse_telecommand("hello_world()@tsexec=100").unwrap();
-        assert!(matches!(
-            result.command,
-            Telecommand::hello_world
-        ));
+        assert!(matches!(result.command, Telecommand::hello_world));
         assert_eq!(result.tsexec, 100);
 
         assert!(matches!(
@@ -258,17 +253,17 @@ mod tests {
                     "arg_f64": 4.0,
                     "arg_nullable_u32": null
                 })"#
-            ).unwrap().command,
-            Telecommand::demo_command_with_arguments(
-                DemoCommandWithArgumentsArgs {
-                    arg_u32: 1,
-                    arg_u64: 2,
-                    arg_bool: true,
-                    arg_f32: 3.0,
-                    arg_f64: 4.0,
-                    arg_nullable_u32: None,
-                }
             )
+            .unwrap()
+            .command,
+            Telecommand::demo_command_with_arguments(DemoCommandWithArgumentsArgs {
+                arg_u32: 1,
+                arg_u64: 2,
+                arg_bool: true,
+                arg_f32: 3.0,
+                arg_f64: 4.0,
+                arg_nullable_u32: None,
+            })
         ));
     }
 

@@ -1,6 +1,7 @@
 use crate::error::SchedulerError;
 use cts2_obc_telecommands::{
-    EXECUTE_IMMEDIATELY, UnixTimestampMs, config::{ConfigValue, ConfigVariableName}
+    EXECUTE_IMMEDIATELY, UnixTimestampMs,
+    config::{ConfigValue, ConfigVariableName},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -42,7 +43,7 @@ impl Task {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         }
     }
 }
@@ -80,7 +81,7 @@ impl Scheduler {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         Scheduler {
             delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
@@ -109,7 +110,7 @@ impl Scheduler {
             execute: none,
             args: TaskArgs::None,
             priority: Priority::None,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         Scheduler {
             delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
@@ -135,27 +136,16 @@ impl Scheduler {
     pub fn release_task(&mut self, unix_ms_ts: UnixTimestampMs) {
         for i in 0..DELAYED_TASKS {
             let task = self.delayed_tasks[i];
-            if task.priority == Priority::None
+            if task.priority != Priority::None
                 && task.tsexec <= unix_ms_ts
-                && self.add_task(task).is_ok()
+                && self.add_ready_task(task).is_ok()
             {
                 self.delayed_tasks[i] = Task::new();
             }
         }
     }
 
-    pub fn add_task(&mut self, task: Task) -> Result<(), SchedulerError> {
-        // Scheduled tasks
-        if task.tsexec != EXECUTE_IMMEDIATELY {
-            for i in 0..DELAYED_TASKS {
-                if self.delayed_tasks[i].priority == Priority::None {
-                    self.delayed_tasks[i] = task;
-                    return Ok(());
-                }
-            }
-            return Err(SchedulerError::QueueFull);
-        }
-
+    pub fn add_ready_task(&mut self, task: Task) -> Result<(), SchedulerError> {
         match task.priority {
             Priority::High => {
                 if self.count_high == TOTAL_TASKS {
@@ -192,6 +182,26 @@ impl Scheduler {
             Priority::None => return Err(SchedulerError::InvalidPriority),
         }
         Ok(())
+    }
+
+    pub fn add_task(&mut self, task: Task) -> Result<(), SchedulerError> {
+        if task.priority == Priority::None {
+            return Err(SchedulerError::InvalidPriority);
+        }
+
+        // Scheduled tasks
+        if task.tsexec != EXECUTE_IMMEDIATELY {
+            for i in 0..DELAYED_TASKS {
+                if self.delayed_tasks[i].priority == Priority::None {
+                    self.delayed_tasks[i] = task;
+                    return Ok(());
+                }
+            }
+            return Err(SchedulerError::QueueFull);
+        }
+
+        // Immediate tasks
+        self.add_ready_task(task)
     }
 
     pub fn run_next_task(&mut self) -> Result<Task, SchedulerError> {

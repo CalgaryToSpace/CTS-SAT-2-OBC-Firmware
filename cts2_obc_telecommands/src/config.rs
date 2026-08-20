@@ -42,11 +42,7 @@ impl FromStr for ConfigValue {
     type Err = ConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (value_type, value_str) = s
-            .strip_suffix(')')
-            .unwrap()
-            .split_once('(')
-            .unwrap();
+        let (value_type, value_str) = s.strip_suffix(')').unwrap().split_once('(').unwrap();
 
         macro_rules! parse_value {
             ($type:ty, $variant:path) => {

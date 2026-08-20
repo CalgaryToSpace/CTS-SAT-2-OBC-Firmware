@@ -12,6 +12,8 @@ pub fn multiply_by_2(i: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
+    use cts2_obc_telecommands::EXECUTE_IMMEDIATELY;
+
     use super::*;
 
     fn test_print_task(args: scheduler::TaskArgs) {
@@ -53,7 +55,7 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing test task"),
             priority: scheduler::Priority::High,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
@@ -73,14 +75,14 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing low priority task"),
             priority: scheduler::Priority::Low,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         let high_task = scheduler::Task {
             name: "High Priority Task",
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("Executing high priority task"),
             priority: scheduler::Priority::High,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         assert!(sched.add_task(low_task).is_ok());
         assert!(sched.add_task(high_task).is_ok());
@@ -106,7 +108,7 @@ mod tests {
             execute: test_sum_task,
             args: scheduler::TaskArgs::TwoU32(42, 7),
             priority: scheduler::Priority::Medium,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         assert!(sched.add_task(task).is_ok());
         assert!(sched.run_next_task().is_ok());
@@ -121,7 +123,7 @@ mod tests {
                 execute: test_print_task,
                 args: scheduler::TaskArgs::Message("Filling queue"),
                 priority: scheduler::Priority::Debug,
-                tsexec: 0,
+                tsexec: EXECUTE_IMMEDIATELY,
             };
             assert!(sched.add_task(task).is_ok());
         }
@@ -131,8 +133,29 @@ mod tests {
             execute: test_print_task,
             args: scheduler::TaskArgs::Message("This should fail"),
             priority: scheduler::Priority::Debug,
-            tsexec: 0,
+            tsexec: EXECUTE_IMMEDIATELY,
         };
         assert!(sched.add_task(extra_task).is_err());
+    }
+
+    #[test]
+    fn test_scheduled_task() {
+        let mut sched = scheduler::Scheduler::new();
+        let scheduled_task = scheduler::Task {
+            name: "Scheduled Task",
+            execute: test_print_task,
+            args: scheduler::TaskArgs::Message("This is a scheduled task"),
+            priority: scheduler::Priority::Medium,
+            tsexec: 123,
+        };
+        assert!(sched.add_task(scheduled_task).is_ok());
+
+        // The scheduled task should not run immediately
+        assert!(sched.run_next_task().is_err());
+
+        sched.release_task(124);
+
+        // Now the scheduled task should run
+        assert!(sched.run_next_task().is_ok());
     }
 }

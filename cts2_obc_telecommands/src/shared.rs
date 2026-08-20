@@ -3,7 +3,7 @@ use crate::{EXECUTE_IMMEDIATELY, UnixTimestampMs, error::ParsedTelecommandErr};
 pub struct ParsedTelecommand<'a> {
     pub command_name: &'a str,
     pub command_args_str: &'a str,
-    pub tsexec_parsed: UnixTimestampMs
+    pub tsexec_parsed: UnixTimestampMs,
 }
 
 // TODO: Make a more robust parser instead of simple string manipulation
