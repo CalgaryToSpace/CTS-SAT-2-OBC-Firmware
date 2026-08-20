@@ -1,5 +1,5 @@
 use crate::error::SchedulerError;
-use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
+use cts2_obc_telecommands::{UnixTimestampMs, config::{ConfigValue, ConfigVariableName}};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
@@ -24,16 +24,13 @@ pub enum TaskArgs {
 
 pub type TaskFn = fn(TaskArgs);
 
-// Unix timestamp of scheduled execution time, in ms seconds since the epoch
-pub type UnixTimestamp = u32;
-
 #[derive(Debug, Copy, Clone)]
 pub struct Task {
     pub name: &'static str,
     pub execute: TaskFn,
     pub args: TaskArgs,
     pub priority: Priority,
-    pub tsexec: UnixTimestamp,
+    pub tsexec: UnixTimestampMs,
 }
 impl Task {
     pub fn new() -> Self {

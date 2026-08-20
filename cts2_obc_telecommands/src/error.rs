@@ -18,6 +18,15 @@ pub enum ParsedTelecommandErr {
 
     #[error("Configuration error")]
     ConfigError(#[from] ConfigError),
+
+    #[error("Unbalanced parentheses")]
+    UnbalancedParentheses,
+
+    #[error("Cannot parse the type with the value string")]
+    ParseStrValueError,
+
+    #[error("Empty telecommand string")]
+    EmptyTelecommandString,
 }
 
 // config operation errors

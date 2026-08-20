@@ -13,7 +13,7 @@ pub mod error;
 use error::{ConfigError, ParsedTelecommandErr};
 
 mod shared;
-use shared::extract_function_and_args;
+use shared::extract_function_args_tags;
 
 use core::str::FromStr;
 use serde::{Deserialize, Serialize};
@@ -50,22 +50,34 @@ pub enum Telecommand {
     set_config(ConfigVariableName, ConfigValue),
 }
 
+// Unix timestamp of scheduled execution time, in ms seconds since the epoch
+pub type UnixTimestampMs = u64;
+
+#[derive(Debug, PartialEq)]
+pub struct ParsedTelecommand {
+    pub command: Telecommand,
+    pub tsexec: UnixTimestampMs
+}
+
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
+pub fn parse_telecommand(input: &str) -> Result<ParsedTelecommand, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
-    let (command_name, command_args_str) = extract_function_and_args(input);
+    let parsed_command = extract_function_args_tags(input)?;
+    let command_args_str = parsed_command.command_args_str;
+    let command_name = parsed_command.command_name;
+    let tsexec_parsed = parsed_command.tsexec_parsed;
 
     let mut parts = command_args_str.split(',').map(|s| s.trim());
-    match command_name {
-        "hello_world" => Ok(Telecommand::hello_world),
+    let command = match command_name {
+        "hello_world" => Telecommand::hello_world,
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
                     .map_err(ParsedTelecommandErr::DeserializationError)?;
-            Ok(Telecommand::demo_command_with_arguments(args))
+            Telecommand::demo_command_with_arguments(args)
         }
-        "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
+        "get_sys_uptime" => Telecommand::get_sys_uptime,
         "get_config" => {
             let name_str = parts
                 .next()
@@ -77,7 +89,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
             }
 
-            Ok(Telecommand::get_config(name_enum))
+            Telecommand::get_config(name_enum)
         }
         "set_config" => {
             let name_str = parts
@@ -96,10 +108,15 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
             }
 
-            Ok(Telecommand::set_config(name_enum, value_enum))
+            Telecommand::set_config(name_enum, value_enum)
         }
-        _ => Err(ParsedTelecommandErr::UnknownCommand),
-    }
+        _ => return Err(ParsedTelecommandErr::UnknownCommand),
+    };
+
+    Ok(ParsedTelecommand {
+        command,
+        tsexec: tsexec_parsed,
+    })
 }
 
 #[cfg(test)]
@@ -190,24 +207,24 @@ mod tests {
 
     #[test]
     fn test_parse_get_config() {
-        let result = parse_telecommand("get_config(config_demo_variable1)");
+        let result = parse_telecommand("get_config(config_demo_variable1)").unwrap();
         assert!(matches!(
-            result,
-            Ok(Telecommand::get_config(
+            result.command,
+            Telecommand::get_config(
                 ConfigVariableName::ConfigDemoVariable1
-            ))
+            )
         ));
     }
 
     #[test]
     fn test_parse_set_config() {
-        let result = parse_telecommand("set_config(config_demo_variable1, u32(8386))");
+        let result = parse_telecommand("set_config(config_demo_variable1, u32(8386))").unwrap();
         assert!(matches!(
-            result,
-            Ok(Telecommand::set_config(
+            result.command,
+            Telecommand::set_config(
                 ConfigVariableName::ConfigDemoVariable1,
                 ConfigValue::U32(8386)
-            ))
+            )
         ));
     }
 
@@ -219,13 +236,17 @@ mod tests {
     #[test]
     fn test_parse_telecommand_valid() {
         assert!(matches!(
-            parse_telecommand("hello_world()"),
-            Ok(Telecommand::hello_world)
+            parse_telecommand("hello_world()").unwrap().command,
+            Telecommand::hello_world
         ));
+
+        let result = parse_telecommand("hello_world()@tsexec=100").unwrap();
         assert!(matches!(
-            parse_telecommand(" hello_world() "),
-            Ok(Telecommand::hello_world)
+            result.command,
+            Telecommand::hello_world
         ));
+        assert_eq!(result.tsexec, 100);
+
         assert!(matches!(
             parse_telecommand(
                 r#"demo_command_with_arguments({
@@ -236,8 +257,8 @@ mod tests {
                     "arg_f64": 4.0,
                     "arg_nullable_u32": null
                 })"#
-            ),
-            Ok(Telecommand::demo_command_with_arguments(
+            ).unwrap().command,
+            Telecommand::demo_command_with_arguments(
                 DemoCommandWithArgumentsArgs {
                     arg_u32: 1,
                     arg_u64: 2,
@@ -246,31 +267,39 @@ mod tests {
                     arg_f64: 4.0,
                     arg_nullable_u32: None,
                 }
-            ))
+            )
         ));
     }
 
     #[test]
     fn test_parse_telecommand_invalid() {
         assert_eq!(
-            parse_telecommand("PINGS"),
+            parse_telecommand("PINGS("),
+            Err(ParsedTelecommandErr::UnbalancedParentheses)
+        );
+        assert_eq!(
+            parse_telecommand("PINGS()"),
             Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
-            parse_telecommand("PONGS"),
+            parse_telecommand("PONGS()"),
             Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
             parse_telecommand(""),
+            Err(ParsedTelecommandErr::EmptyTelecommandString)
+        );
+        assert_eq!(
+            parse_telecommand("LEDON()"),
             Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
-            parse_telecommand("LEDON"),
+            parse_telecommand("LEDOFF()"),
             Err(ParsedTelecommandErr::UnknownCommand)
         );
         assert_eq!(
-            parse_telecommand("LEDOFF"),
-            Err(ParsedTelecommandErr::UnknownCommand)
+            parse_telecommand("hello_world()@tsexec=abc"),
+            Err(ParsedTelecommandErr::ParseStrValueError)
         );
         assert_eq!(
             parse_telecommand("demo_command_with_arguments({invalid_json})"),
@@ -309,14 +338,14 @@ mod tests {
         let json_minified = r#"{"arg_u32":123,"arg_u64":45678901234,"arg_bool":true,"arg_f32":3.14,"arg_f64":2.718281828459045,"arg_nullable_u32":null}"#;
 
         let command_str = format!("demo_command_with_arguments({})", json_minified);
-        let result = parse_telecommand(&command_str);
+        let result = parse_telecommand(&command_str).unwrap();
         assert!(matches!(
-            result,
-            Ok(Telecommand::demo_command_with_arguments(_))
+            result.command,
+            Telecommand::demo_command_with_arguments(_)
         ));
 
         assert!(
-            if let Ok(Telecommand::demo_command_with_arguments(args)) = result {
+            if let Telecommand::demo_command_with_arguments(args) = result.command {
                 args.arg_u32 == 123
                     && args.arg_u64 == 45678901234
                     && args.arg_bool == true

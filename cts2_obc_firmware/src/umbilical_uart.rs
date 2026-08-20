@@ -119,7 +119,7 @@ pub fn process_umbilical_commands() {
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
 fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
-    let cmd = match parse_telecommand(cmd_str) {
+    let cmd_parsed = match parse_telecommand(cmd_str) {
         Ok(cmd) => cmd,
         Err(e) => {
             match e {
@@ -137,8 +137,6 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 ParsedTelecommandErr::ExceededArgumentCount => {
                     send_umbilical_uart(b"ERR: too many arguments provided\r\n");
                 }
-
-                // When the errors got bigger, consider move into another function
                 ParsedTelecommandErr::ConfigError(e_conf) => match e_conf {
                     ConfigError::ConfigVariableNotFound => {
                         send_umbilical_uart(b"ERR: configuration variable not found\r\n");
@@ -155,10 +153,22 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                         );
                     }
                 },
+                ParsedTelecommandErr::UnbalancedParentheses => {
+                    send_umbilical_uart(b"ERR: unbalanced parentheses in command\r\n");
+                }
+                ParsedTelecommandErr::ParseStrValueError => {
+                    send_umbilical_uart(b"ERR: cannot parse the type with the value string\r\n");
+                }
+                ParsedTelecommandErr::EmptyTelecommandString => {
+                    send_umbilical_uart(b"ERR: empty telecommand string\r\n");
+                }
             }
             return Err(e.into());
         }
     };
+
+    let cmd = cmd_parsed.command;
+    let tsexec = cmd_parsed.tsexec;
 
     match cmd {
         Telecommand::hello_world => {
@@ -167,7 +177,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_hello_world,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
-                tsexec: 0,
+                tsexec,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -187,7 +197,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_demo_command_with_arguments,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
-                tsexec: 0,
+                tsexec,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -201,7 +211,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
                 args: TaskArgs::None,
                 priority: Priority::Medium,
-                tsexec: 0,
+                tsexec,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -216,7 +226,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_get_config_variable,
                 args: TaskArgs::GetConfig(name),
                 priority: Priority::Medium,
-                tsexec: 0,
+                tsexec,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
@@ -231,7 +241,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 execute: crate::telecommand_implementation::telecommand_set_config_variable,
                 args: TaskArgs::SetConfig(name, value),
                 priority: Priority::Medium,
-                tsexec: 0,
+                tsexec,
             };
             critical_section(|cs| -> Result<(), SchedulerError> {
                 let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
