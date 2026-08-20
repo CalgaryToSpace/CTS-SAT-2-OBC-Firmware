@@ -1,12 +1,15 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_logic::error::SchedulerError;
 use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
 use crate::error::DispatchCommandErr;
-use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+use crate::scheduler_instance::SCHEDULER;
+use cortex_m::interrupt::free as critical_section;
+use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -31,14 +34,20 @@ pub fn poll_uart_rx(
     >,
 ) {
     let mut buf = [0; MAX_TELECOMMAND_STR_LENGTH];
-    let buf_size = rx_transfer.read(&mut buf).unwrap();
-
-    // Process data[..pending].
-    for &b in buf.iter().take(buf_size) {
-        if b != 0 {
-            rprintln!("RX: {}", b);
+    match rx_transfer.read(&mut buf) {
+        Ok(buf_size) => {
+            // Process data[..pending].
+            for &b in buf.iter().take(buf_size) {
+                if b != 0 {
+                    rprintln!("RX: {}", b);
+                }
+                uart_push_byte(b);
+            }
         }
-        uart_push_byte(b);
+        Err(_overrun) => {
+            // DMA buffer overrun - log it but continue processing
+            rprintln!("DMA RX Overrun - data may have been lost");
+        }
     }
 }
 
@@ -87,7 +96,14 @@ pub fn process_umbilical_commands() {
                     rprintln!("CMD: {}", trimmed);
                     match dispatch_command(trimmed) {
                         Ok(_) => rprintln!("Command executed successfully"),
-                        Err(_) => rprintln!("Command execution failed"),
+                        Err(e) => match e {
+                            DispatchCommandErr::Scheduler(e_sched) => {
+                                rprintln!("Scheduler error: {:?}", e_sched);
+                            }
+                            DispatchCommandErr::ParsedTelecommand(e_parse) => {
+                                rprintln!("Parsed telecommand error: {:?}", e_parse);
+                            }
+                        },
                     }
                 }
                 idx = 0;
@@ -103,7 +119,7 @@ pub fn process_umbilical_commands() {
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
 fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
-    let cmd = match parse_telecommand(cmd_str) {
+    let cmd_parsed = match parse_telecommand(cmd_str) {
         Ok(cmd) => cmd,
         Err(e) => {
             match e {
@@ -121,49 +137,117 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
                 ParsedTelecommandErr::ExceededArgumentCount => {
                     send_umbilical_uart(b"ERR: too many arguments provided\r\n");
                 }
-
-                // When the errors got bigger, consider move into another function
-                ParsedTelecommandErr::ConfigError(e_conf) => {
-                    send_umbilical_uart(b"ERR: configuration error\r\n");
-                    match e_conf {
-                        ConfigError::ConfigVariableNotFound => {
-                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
-                        }
-                        ConfigError::ConfigVariableNotThisType => {
-                            send_umbilical_uart(
-                                b"ERR: configuration variable is not this type\r\n",
-                            );
-                        }
-                        ConfigError::ConfigVariableUnknownType => {
-                            send_umbilical_uart(
-                                b"ERR: unknown type for configuration variable\r\n",
-                            );
-                        }
-                        ConfigError::ConfigParseValueTypeError => {
-                            send_umbilical_uart(
-                                b"ERR: cannot parse the type with the value string\r\n",
-                            );
-                        }
+                ParsedTelecommandErr::ConfigError(e_conf) => match e_conf {
+                    ConfigError::ConfigVariableNotFound => {
+                        send_umbilical_uart(b"ERR: configuration variable not found\r\n");
                     }
+                    ConfigError::ConfigVariableNotThisType => {
+                        send_umbilical_uart(b"ERR: configuration variable is not this type\r\n");
+                    }
+                    ConfigError::ConfigVariableUnknownType => {
+                        send_umbilical_uart(b"ERR: unknown type for configuration variable\r\n");
+                    }
+                    ConfigError::ConfigParseValueTypeError => {
+                        send_umbilical_uart(
+                            b"ERR: cannot parse the type with the value string\r\n",
+                        );
+                    }
+                },
+                ParsedTelecommandErr::UnbalancedParentheses => {
+                    send_umbilical_uart(b"ERR: unbalanced parentheses in command\r\n");
+                }
+                ParsedTelecommandErr::ParseStrValueError => {
+                    send_umbilical_uart(b"ERR: cannot parse the type with the value string\r\n");
+                }
+                ParsedTelecommandErr::EmptyTelecommandString => {
+                    send_umbilical_uart(b"ERR: empty telecommand string\r\n");
                 }
             }
             return Err(e.into());
         }
     };
 
+    let cmd = cmd_parsed.command;
+    let tsexec = cmd_parsed.tsexec;
+
     match cmd {
-        Telecommand::hello_world => run_hello_world_telecommand()?,
+        Telecommand::hello_world => {
+            let task = Task {
+                name: "hello_world",
+                execute: crate::telecommand_implementation::telecommand_hello_world,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+                tsexec,
+            };
+            critical_section(|cs| -> Result<(), SchedulerError> {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
+        }
+
         Telecommand::demo_command_with_arguments(args) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
+            critical_section(|cs| {
+                crate::telecommand_implementation::demo_commands::DEMO_ARGS
+                    .borrow(cs)
+                    .replace(Some(args));
+            });
+            let task = Task {
+                name: "demo_command",
+                execute: crate::telecommand_implementation::telecommand_demo_command_with_arguments,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+                tsexec,
+            };
+            critical_section(|cs| -> Result<(), SchedulerError> {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
         Telecommand::get_sys_uptime => {
-            crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
+            let task = Task {
+                name: "get_sys_uptime",
+                execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
+                args: TaskArgs::None,
+                priority: Priority::Medium,
+                tsexec,
+            };
+            critical_section(|cs| -> Result<(), SchedulerError> {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
+
         Telecommand::get_config(name) => {
-            crate::telecommand_implementation::get_config_variable(name)?
+            let task = Task {
+                name: "get_config",
+                execute: crate::telecommand_implementation::telecommand_get_config_variable,
+                args: TaskArgs::GetConfig(name),
+                priority: Priority::Medium,
+                tsexec,
+            };
+            critical_section(|cs| -> Result<(), SchedulerError> {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
+
         Telecommand::set_config(name, value) => {
-            crate::telecommand_implementation::set_config_variable(name, value)?
+            let task = Task {
+                name: "set_config",
+                execute: crate::telecommand_implementation::telecommand_set_config_variable,
+                args: TaskArgs::SetConfig(name, value),
+                priority: Priority::Medium,
+                tsexec,
+            };
+            critical_section(|cs| -> Result<(), SchedulerError> {
+                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
+                scheduler.add_task(task)?;
+                Ok(())
+            })?;
         }
     };
 

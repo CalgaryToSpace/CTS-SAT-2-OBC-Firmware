@@ -2,8 +2,6 @@ use crate::error::ConfigError;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicU32, Ordering};
 
-use crate::shared;
-
 // Global configuration store
 // There is no float for atomic, consider
 // using AtomicU32 to store and just parse as float
@@ -44,7 +42,7 @@ impl FromStr for ConfigValue {
     type Err = ConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (value_type, value_str) = shared::extract_function_and_args(s);
+        let (value_type, value_str) = s.strip_suffix(')').unwrap().split_once('(').unwrap();
 
         macro_rules! parse_value {
             ($type:ty, $variant:path) => {

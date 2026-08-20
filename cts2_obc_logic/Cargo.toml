@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 cts2_obc_telecommands = { path = "../cts2_obc_telecommands" }
+thiserror = { version = "2", default-features = false }
