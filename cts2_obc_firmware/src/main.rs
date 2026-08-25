@@ -9,6 +9,7 @@ use cortex_m::interrupt::free as critical_section;
 use cortex_m::peripheral::NVIC;
 use rtt_target::{rprintln, rtt_init_print};
 use static_cell::StaticCell;
+use stm32l4xx_hal::gpio::gpiof;
 use stm32l4xx_hal::{
     self as stm32_hal,
     dma::CircReadDma as _,
@@ -16,6 +17,7 @@ use stm32l4xx_hal::{
     prelude::*,
 };
 
+mod obc_temperature_sensor;
 mod telecommand_implementation;
 mod umbilical_uart;
 
@@ -63,6 +65,7 @@ fn entry_point() -> ! {
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
     // --- GPIO ---
+    let mut gpiob = peripheral.GPIOB.split(&mut rcc.ahb2);
     let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
     let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
     let led = gpioc
@@ -74,6 +77,24 @@ fn entry_point() -> ! {
         PERIPHERAL_GREEN_LED.borrow(cs).replace(Some(led));
         PERIPHERAL_DELAY_TIMER.borrow(cs).replace(Some(timer));
     });
+
+    // --- I2C Setup ---
+    let scl =
+        gpiob
+            .pb8
+            .into_alternate_open_drain(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
+
+    let sda =
+        gpiob
+            .pb9
+            .into_alternate_open_drain(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrh);
+
+    let i2c_config = stm32_hal::i2c::Config::new(100.kHz(), clocks);
+
+    let mut i2c =
+        stm32_hal::i2c::I2c::i2c1(peripheral.I2C1, (scl, sda), i2c_config, &mut rcc.apb1r1);
+
+    rprintln!("I2C1 initialized at 100 kHz.");
 
     // --- USART2 Setup ---
     let rx_dma = {
