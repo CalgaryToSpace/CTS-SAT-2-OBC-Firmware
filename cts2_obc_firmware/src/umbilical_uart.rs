@@ -1,8 +1,11 @@
+use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::{Telecommand, parse_telecommand};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
+use crate::error::DispatchCommandErr;
 use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
@@ -99,18 +102,72 @@ pub fn process_umbilical_commands() {
 // TODO: Make different functions to handle each separate command.
 // TODO: Fix the () error type to be enum or string
 // TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<(), ()> {
-    let cmd = parse_telecommand(cmd_str);
-    match cmd {
-        Ok(Telecommand::hello_world) => run_hello_world_telecommand(),
-        Ok(Telecommand::demo_command_with_arguments(args)) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)
-        }
+fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
+    let cmd = match parse_telecommand(cmd_str) {
+        Ok(cmd) => cmd,
         Err(e) => {
-            send_umbilical_uart(b"ERR: unknown command\r\n");
-            Err(e)
+            match e {
+                ParsedTelecommandErr::UnknownCommand => {
+                    send_umbilical_uart(b"ERR: unknown command\r\n");
+                }
+                ParsedTelecommandErr::DeserializationError(_) => {
+                    send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
+                }
+                ParsedTelecommandErr::MissingArgument(idx) => {
+                    let mut msg = heapless::String::<64>::new();
+                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
+                    send_umbilical_uart(msg.as_bytes());
+                }
+                ParsedTelecommandErr::ExceededArgumentCount => {
+                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
+                }
+
+                // When the errors got bigger, consider move into another function
+                ParsedTelecommandErr::ConfigError(e_conf) => {
+                    send_umbilical_uart(b"ERR: configuration error\r\n");
+                    match e_conf {
+                        ConfigError::ConfigVariableNotFound => {
+                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
+                        }
+                        ConfigError::ConfigVariableNotThisType => {
+                            send_umbilical_uart(
+                                b"ERR: configuration variable is not this type\r\n",
+                            );
+                        }
+                        ConfigError::ConfigVariableUnknownType => {
+                            send_umbilical_uart(
+                                b"ERR: unknown type for configuration variable\r\n",
+                            );
+                        }
+                        ConfigError::ConfigParseValueTypeError => {
+                            send_umbilical_uart(
+                                b"ERR: cannot parse the type with the value string\r\n",
+                            );
+                        }
+                    }
+                }
+            }
+            return Err(e.into());
         }
-    }
+    };
+
+    match cmd {
+        Telecommand::hello_world => run_hello_world_telecommand()?,
+        Telecommand::demo_command_with_arguments(args) => {
+            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
+        }
+        Telecommand::get_sys_uptime => {
+            crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
+        }
+        Telecommand::get_config(name) => {
+            crate::telecommand_implementation::get_config_variable(name)?
+        }
+        Telecommand::set_config(name, value) => {
+            crate::telecommand_implementation::set_config_variable(name, value)?
+        }
+    };
+
+    Ok(())
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).
