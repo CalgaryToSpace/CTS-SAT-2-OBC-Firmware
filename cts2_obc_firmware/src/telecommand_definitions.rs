@@ -1,42 +1,56 @@
+// TODO: Remove dead code warning when you started using them
+
 pub enum ReadinessLevel {
     Operation,
-    _RecoveryOrExpert,
-    _FlightTest,
-    _GroundUsage,
-    _HighRiskUnsafe
+
+    #[expect(dead_code)]
+    RecoveryOrExpert,
+
+    #[expect(dead_code)]
+    FlightTest,
+
+    #[expect(dead_code)]
+    GroundUsage,
+
+    #[expect(dead_code)]
+    HighRiskUnsafe
 }
 
 pub struct TelecommandDefinition { 
     pub name: &'static str,
-    pub _num_parameters: u8,
-    pub _readiness: ReadinessLevel,
+
+    #[expect(dead_code)]
+    pub num_parameters: u8,
+
+    #[expect(dead_code)]
+    pub readiness: ReadinessLevel,
 }
 
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
     TelecommandDefinition {
         name: "hello_world",
-        _num_parameters: 0,
-        _readiness: ReadinessLevel::Operation,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
         name: "get_sys_uptime",
-        _num_parameters: 0,
-        _readiness: ReadinessLevel::Operation,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
         name: "demo_command_with_arguments",
-        _num_parameters: 1,
-        _readiness: ReadinessLevel::Operation,
+        num_parameters: 1,
+        readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
         name: "get_config",
-        _num_parameters: 1,
-        _readiness: ReadinessLevel::Operation,
+        num_parameters: 1,
+        readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
         name: "set_config",
-        _num_parameters: 2,
-        _readiness: ReadinessLevel::Operation,
+        num_parameters: 2,
+        readiness: ReadinessLevel::Operation,
     },
 ];
 
