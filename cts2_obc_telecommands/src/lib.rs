@@ -39,9 +39,11 @@ pub struct DemoCommandWithArgumentsArgs {
 }
 
 // TODO:Add more args for other telecommands as needed
+
+// Custom argument struct for send_name() telecommand
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct SendNameArgs<'a> {
-    pub name: &'a str,
+    pub name: &'a str,  // using &str requires a lifetime
 }
 
 #[derive(Debug, PartialEq)]
@@ -52,12 +54,12 @@ pub enum Telecommand<'a> {
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
     get_config(ConfigVariableName),
     set_config(ConfigVariableName, ConfigValue),
-    send_name(SendNameArgs<'a>),  // Hello, my name is Hasan
+    send_name(SendNameArgs<'a>),  // Hello, my name is {NAME}
 }
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTelecommandErr> {
+pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTelecommandErr> { // Needed lifetime to make send_name() work
     // Extract string before the first '(' to identify the command.
     let (command_name, command_args_str) = extract_function_and_args(input);
 
@@ -106,6 +108,7 @@ pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTe
         "send_name" => {
             let name = parts.next().ok_or(ParsedTelecommandErr::MissingArgument(0))?;
 
+            // is_some() returning true means there is more than one argument, which is a problem
             if parts.next().is_some() {
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
             }

@@ -31,9 +31,10 @@ pub fn run_demo_command_with_arguments(
 pub fn run_send_name_telecommand<'a>(entered_name: SendNameArgs<'a>,) -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(b"HELLO, MY NAME IS ");
 
+    // Convert &str to all caps to be consistent
     for &c in entered_name.name.as_bytes() {
         let upper_char = if c >= b'a' && c <= b'z' {
-            c - 32
+            c - 32  // Subtract ASCII value to get uppercase equivalent
         } else {
             c
         };
