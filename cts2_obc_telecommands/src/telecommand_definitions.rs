@@ -81,6 +81,21 @@ const fn assert_unique() {
     }
 }
 
+pub const MAX_ARGS: u8 = {
+      let mut max = 0;
+      let mut i = 0;
+
+      while i < TELECOMMAND_DEFINITIONS.len() {
+          let count = TELECOMMAND_DEFINITIONS[i].num_parameters;
+          if count > max {
+              max = count;
+          }
+          i += 1;
+      }
+
+      max
+  };
+
 // Insert all compile time checks here.
 // This will run at compile time
 const _: () = assert_unique();

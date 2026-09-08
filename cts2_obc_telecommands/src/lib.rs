@@ -19,7 +19,7 @@ use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
-use crate::telecommand_definitions::TELECOMMAND_DEFINITIONS;
+use crate::telecommand_definitions::{TELECOMMAND_DEFINITIONS, TelecommandDefinition};
 
 mod telecommand_definitions;
 
@@ -44,59 +44,27 @@ pub struct DemoCommandWithArgumentsArgs {
 
 // TODO:Add more args for other telecommands as needed
 
-#[derive(Debug, PartialEq)]
-#[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
-pub enum Telecommand {
-    hello_world, // telecommand with no args
-    get_sys_uptime,
-    get_config(ConfigVariableName),
-    set_config(ConfigVariableName, ConfigValue),
+pub struct Telecommand<'a> {
+    pub def: &'static TelecommandDefinition,
+    pub args: &'a str
 }
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
+pub fn parse_telecommand(input: &str) -> Result<Telecommand<'_>, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
     let (command_name, command_args_str) = extract_function_and_args(input);
 
-    let mut parts = command_args_str.split(',').map(|s| s.trim());
-    match command_name {
-        "hello_world" => Ok(Telecommand::hello_world),
-        "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
-        "get_config" => {
-            let name_str = parts
-                .next()
-                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
-            let name_enum = ConfigVariableName::from_str(name_str).map_err(|_| {
-                ParsedTelecommandErr::ConfigError(ConfigError::ConfigVariableNotFound)
-            })?;
-            if parts.next().is_some() {
-                return Err(ParsedTelecommandErr::ExceededArgumentCount);
-            }
-
-            Ok(Telecommand::get_config(name_enum))
+    for telecommand_definitions in TELECOMMAND_DEFINITIONS.iter() {
+        if telecommand_definitions.name == command_name {
+            return Ok(Telecommand {
+                def: telecommand_definitions,
+                args: command_args_str,
+            });
         }
-        "set_config" => {
-            let name_str = parts
-                .next()
-                .ok_or(ParsedTelecommandErr::MissingArgument(0))?;
-            let name_enum = ConfigVariableName::from_str(name_str)
-                .map_err(ParsedTelecommandErr::ConfigError)?;
-
-            let value_str = parts
-                .next()
-                .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
-            let value_enum =
-                ConfigValue::from_str(value_str).map_err(ParsedTelecommandErr::ConfigError)?;
-
-            if parts.next().is_some() {
-                return Err(ParsedTelecommandErr::ExceededArgumentCount);
-            }
-
-            Ok(Telecommand::set_config(name_enum, value_enum))
-        }
-        _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
+    
+    Err(ParsedTelecommandErr::UnknownCommand)
 }
 
 #[cfg(test)]
