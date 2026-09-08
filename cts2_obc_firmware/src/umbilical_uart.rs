@@ -153,9 +153,6 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
 
     match cmd {
         Telecommand::hello_world => run_hello_world_telecommand()?,
-        Telecommand::demo_command_with_arguments(args) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
-        }
         Telecommand::get_sys_uptime => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
         }

@@ -19,6 +19,10 @@ use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json_core::de::from_slice;
 
+use crate::telecommand_definitions::TELECOMMAND_DEFINITIONS;
+
+mod telecommand_definitions;
+
 // global static singleton for configuration
 static CONFIG_STORE: ConfigStore = ConfigStore::new();
 
@@ -45,7 +49,6 @@ pub struct DemoCommandWithArgumentsArgs {
 pub enum Telecommand {
     hello_world, // telecommand with no args
     get_sys_uptime,
-    demo_command_with_arguments(DemoCommandWithArgumentsArgs),
     get_config(ConfigVariableName),
     set_config(ConfigVariableName, ConfigValue),
 }
@@ -59,12 +62,6 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
     let mut parts = command_args_str.split(',').map(|s| s.trim());
     match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
-        "demo_command_with_arguments" => {
-            let (args, _rest) =
-                from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
-                    .map_err(ParsedTelecommandErr::DeserializationError)?;
-            Ok(Telecommand::demo_command_with_arguments(args))
-        }
         "get_sys_uptime" => Ok(Telecommand::get_sys_uptime),
         "get_config" => {
             let name_str = parts

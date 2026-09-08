@@ -18,7 +18,6 @@ use stm32l4xx_hal::{
 
 mod error;
 mod telecommand_implementation;
-mod telecommand_definitions;
 mod timekeeping;
 mod umbilical_uart;
 

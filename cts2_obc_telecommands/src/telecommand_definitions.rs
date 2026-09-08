@@ -38,11 +38,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
-        name: "demo_command_with_arguments",
-        num_parameters: 1,
-        readiness: ReadinessLevel::Operation,
-    },
-    TelecommandDefinition {
         name: "get_config",
         num_parameters: 1,
         readiness: ReadinessLevel::Operation,
