@@ -48,6 +48,7 @@ pub enum Telecommand {
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
     get_config(ConfigVariableName),
     set_config(ConfigVariableName, ConfigValue),
+    get_obc_info,
 }
 
 // TODO: Replace with meaningful telecommands
@@ -98,6 +99,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
 
             Ok(Telecommand::set_config(name_enum, value_enum))
         }
+        "get_obc_info" => Ok(Telecommand::get_obc_info),
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }

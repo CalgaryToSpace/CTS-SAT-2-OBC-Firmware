@@ -165,6 +165,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
         Telecommand::set_config(name, value) => {
             crate::telecommand_implementation::set_config_variable(name, value)?
         }
+        Telecommand::get_obc_info => crate::telecommand_implementation::get_obc_info()?,
     };
 
     Ok(())
