@@ -35,3 +35,9 @@ pub enum ConfigError {
     #[error("Unknown type for configuration variable")]
     ConfigVariableUnknownType,
 }
+
+#[derive(Debug, Error)]
+pub enum ExecuteCommandErr {
+    #[error("Config operation error")]
+    ConfigError(#[from] ConfigError),
+}

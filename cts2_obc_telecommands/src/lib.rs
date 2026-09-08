@@ -7,21 +7,16 @@
 extern crate std;
 
 pub mod config;
-use config::{ConfigStore, ConfigValue, ConfigVariableName};
+use config::ConfigStore;
 
 pub mod error;
-use error::{ConfigError, ParsedTelecommandErr};
+use error::ParsedTelecommandErr;
+
+pub mod telecommand_definitions;
+use telecommand_definitions::TelecommandDefinition;
 
 mod shared;
 use shared::extract_function_and_args;
-
-use core::str::FromStr;
-use serde::{Deserialize, Serialize};
-use serde_json_core::de::from_slice;
-
-use crate::telecommand_definitions::{TELECOMMAND_DEFINITIONS, TelecommandDefinition};
-
-mod telecommand_definitions;
 
 // global static singleton for configuration
 static CONFIG_STORE: ConfigStore = ConfigStore::new();
@@ -31,39 +26,50 @@ pub fn get_config_store() -> &'static ConfigStore {
     &CONFIG_STORE
 }
 
-// --- Existing Telecommand Code ---
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub struct DemoCommandWithArgumentsArgs {
-    pub arg_u32: u32,
-    pub arg_u64: u64,
-    pub arg_bool: bool,
-    pub arg_f32: f32,
-    pub arg_f64: f64,
-    pub arg_nullable_u32: Option<u32>,
-}
-
 // TODO:Add more args for other telecommands as needed
 
 pub struct Telecommand<'a> {
     pub def: &'static TelecommandDefinition,
-    pub args: &'a str
+    pub args: &'a str,
 }
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand(input: &str) -> Result<Telecommand<'_>, ParsedTelecommandErr> {
+pub fn parse_telecommand<'a>(
+    input: &'a str,
+    telecommand_definitions: &'static [TelecommandDefinition],
+) -> Result<Telecommand<'a>, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
     let (command_name, command_args_str) = extract_function_and_args(input);
+    let args = command_args_str.split(',');
+    let count = if command_args_str.is_empty() {
+        0
+    } else {
+        args.clone().count()
+    };
 
-    for telecommand_definitions in TELECOMMAND_DEFINITIONS.iter() {
-        if telecommand_definitions.name == command_name {
+    for tcmd_def in telecommand_definitions.iter() {
+        if tcmd_def.name == command_name {
+            if count < usize::from(tcmd_def.num_parameters) {
+                return Err(ParsedTelecommandErr::MissingArgument(count as u8));
+            }
+            if count > usize::from(tcmd_def.num_parameters) {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+            if count > 0 {
+                for (index, arg) in args.enumerate() {
+                    if arg.trim().is_empty() {
+                        return Err(ParsedTelecommandErr::MissingArgument(index as u8));
+                    }
+                }
+            }
             return Ok(Telecommand {
-                def: telecommand_definitions,
+                def: tcmd_def,
                 args: command_args_str,
             });
         }
     }
-    
+
     Err(ParsedTelecommandErr::UnknownCommand)
 }
 
