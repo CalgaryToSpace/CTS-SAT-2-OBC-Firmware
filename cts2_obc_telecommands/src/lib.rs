@@ -230,8 +230,14 @@ mod tests {
 
     #[test]
     fn test_extract_command_without_arguments() {
-        assert_eq!(extract_function_and_args("hello_world()"), ("hello_world", ""));
-        assert_eq!(extract_function_and_args(" hello_world() "), ("hello_world", ""));
+        assert_eq!(
+            extract_function_and_args("hello_world()"),
+            ("hello_world", "")
+        );
+        assert_eq!(
+            extract_function_and_args(" hello_world() "),
+            ("hello_world", "")
+        );
     }
 
     #[test]
