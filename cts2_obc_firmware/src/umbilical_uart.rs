@@ -1,6 +1,5 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
 use cts2_obc_telecommands::parse_telecommand;
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
@@ -105,55 +104,23 @@ pub fn process_umbilical_commands() {
 fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
     let cmd = match parse_telecommand(cmd_str, TELECOMMAND_DEFINITIONS) {
         Ok(cmd) => cmd,
-        Err(e) => {
-            match e {
-                ParsedTelecommandErr::UnknownCommand => {
-                    send_umbilical_uart(b"ERR: unknown command\r\n");
-                }
-                ParsedTelecommandErr::DeserializationError(_) => {
-                    send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
-                }
-                ParsedTelecommandErr::MissingArgument(idx) => {
-                    let mut msg = heapless::String::<64>::new();
-                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
-                    send_umbilical_uart(msg.as_bytes());
-                }
-                ParsedTelecommandErr::ExceededArgumentCount => {
-                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
-                }
-
-                // When the errors got bigger, consider move into another function
-                ParsedTelecommandErr::ConfigError(e_conf) => {
-                    send_umbilical_uart(b"ERR: configuration error\r\n");
-                    match e_conf {
-                        ConfigError::ConfigVariableNotFound => {
-                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
-                        }
-                        ConfigError::ConfigVariableNotThisType => {
-                            send_umbilical_uart(
-                                b"ERR: configuration variable is not this type\r\n",
-                            );
-                        }
-                        ConfigError::ConfigVariableUnknownType => {
-                            send_umbilical_uart(
-                                b"ERR: unknown type for configuration variable\r\n",
-                            );
-                        }
-                        ConfigError::ConfigParseValueTypeError => {
-                            send_umbilical_uart(
-                                b"ERR: cannot parse the type with the value string\r\n",
-                            );
-                        }
-                    }
-                }
-            }
-            return Err(e.into());
+        Err(err) => {
+            send_uart_error(&err);
+            return Err(err.into());
         }
     };
 
-    (cmd.def.exec)(cmd.args)?;
-
+    if let Err(err) = (cmd.def.exec)(cmd.args) {
+        send_uart_error(&err);
+        return Err(err.into());
+    }
     Ok(())
+}
+
+fn send_uart_error(err: &impl core::fmt::Display) {
+    let mut msg = heapless::String::<128>::new();
+    let _ = write!(msg, "ERR: {err}\r\n");
+    send_umbilical_uart(msg.as_bytes());
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).

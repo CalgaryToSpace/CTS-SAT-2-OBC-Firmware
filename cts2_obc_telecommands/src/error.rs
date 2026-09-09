@@ -10,13 +10,13 @@ pub enum ParsedTelecommandErr {
     #[error("Failed to deserialize telecommand arguments")]
     DeserializationError(#[from] serde_json_core::de::Error),
 
-    #[error("Missing required argument")]
+    #[error("Missing required argument at index {0}")]
     MissingArgument(IndexMissing),
 
     #[error("Too many arguments provided")]
     ExceededArgumentCount,
 
-    #[error("Configuration error")]
+    #[error("Configuration error: {0}")]
     ConfigError(#[from] ConfigError),
 }
 
@@ -38,6 +38,6 @@ pub enum ConfigError {
 
 #[derive(Debug, Error)]
 pub enum ExecuteCommandErr {
-    #[error("Config operation error")]
+    #[error("Config operation error: {0}")]
     ConfigError(#[from] ConfigError),
 }
