@@ -76,6 +76,75 @@ pub fn parse_telecommand<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{ConfigValue, ConfigVariableName};
+    use crate::error::ConfigError;
+    use crate::telecommand_definitions::ReadinessLevel;
+    use core::str::FromStr;
+
+    const SAMPLE_DEFINITIONS: &[TelecommandDefinition] = &[
+        TelecommandDefinition {
+            name: "sample",
+            num_parameters: 2,
+            readiness: ReadinessLevel::GroundUsage,
+            exec: |_| panic!("Parsing must not execute commands"),
+        },
+        TelecommandDefinition {
+            name: "sample_empty",
+            num_parameters: 0,
+            readiness: ReadinessLevel::GroundUsage,
+            exec: |_| panic!("Parsing must not execute commands"),
+        },
+    ];
+
+    #[test]
+    fn test_parse_unknown_command() {
+        assert_eq!(
+            parse_telecommand("unknown(1,2)", SAMPLE_DEFINITIONS).err(),
+            Some(ParsedTelecommandErr::UnknownCommand),
+        );
+    }
+
+    #[test]
+    fn test_parse_missing_argument() {
+        for (input, index) in [
+            ("sample()", 0),
+            ("sample(   )", 0),
+            ("sample(first)", 1),
+            ("sample(,second)", 0),
+            ("sample(first,)", 1),
+            ("sample(first,   )", 1),
+            ("sample( , )", 0),
+        ] {
+            assert_eq!(
+                parse_telecommand(input, SAMPLE_DEFINITIONS).err(),
+                Some(ParsedTelecommandErr::MissingArgument(index)),
+                "input: {input}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_extra_arguments() {
+        for input in ["sample(1,2,3)", "sample(1,2,)"] {
+            assert_eq!(
+                parse_telecommand(input, SAMPLE_DEFINITIONS).err(),
+                Some(ParsedTelecommandErr::ExceededArgumentCount),
+                "input: {input}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_valid_sample_arguments() {
+        for (input, name, args) in [
+            ("sample(first, second)", "sample", "first, second"),
+            ("sample_empty()", "sample_empty", ""),
+        ] {
+            let cmd = parse_telecommand(input, SAMPLE_DEFINITIONS).unwrap();
+            assert_eq!(cmd.def.name, name);
+            assert_eq!(cmd.args, args);
+        }
+    }
 
     #[test]
     fn test_config_store_get_set() {
@@ -160,143 +229,36 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_get_config() {
-        let result = parse_telecommand("get_config(config_demo_variable1)");
-        assert!(matches!(
-            result,
-            Ok(Telecommand::get_config(
-                ConfigVariableName::ConfigDemoVariable1
-            ))
-        ));
+    fn test_extract_command_without_arguments() {
+        assert_eq!(extract_function_and_args("hello_world()"), ("hello_world", ""));
+        assert_eq!(extract_function_and_args(" hello_world() "), ("hello_world", ""));
     }
 
     #[test]
-    fn test_parse_set_config() {
-        let result = parse_telecommand("set_config(config_demo_variable1, u32(8386))");
-        assert!(matches!(
-            result,
-            Ok(Telecommand::set_config(
-                ConfigVariableName::ConfigDemoVariable1,
-                ConfigValue::U32(8386)
-            ))
-        ));
-    }
-
-    #[test]
-    fn test_placeholder() {
-        assert_eq!(42, 42);
-    }
-
-    #[test]
-    fn test_parse_telecommand_valid() {
-        assert!(matches!(
-            parse_telecommand("hello_world()"),
-            Ok(Telecommand::hello_world)
-        ));
-        assert!(matches!(
-            parse_telecommand(" hello_world() "),
-            Ok(Telecommand::hello_world)
-        ));
-        assert!(matches!(
-            parse_telecommand(
-                r#"demo_command_with_arguments({
-                    "arg_u32": 1,
-                    "arg_u64": 2,
-                    "arg_bool": true,
-                    "arg_f32": 3.0,
-                    "arg_f64": 4.0,
-                    "arg_nullable_u32": null
-                })"#
-            ),
-            Ok(Telecommand::demo_command_with_arguments(
-                DemoCommandWithArgumentsArgs {
-                    arg_u32: 1,
-                    arg_u64: 2,
-                    arg_bool: true,
-                    arg_f32: 3.0,
-                    arg_f64: 4.0,
-                    arg_nullable_u32: None,
-                }
-            ))
-        ));
-    }
-
-    #[test]
-    fn test_parse_telecommand_invalid() {
+    fn test_extract_config_arguments() {
         assert_eq!(
-            parse_telecommand("PINGS"),
-            Err(ParsedTelecommandErr::UnknownCommand)
+            extract_function_and_args("get_config(config_demo_variable1)"),
+            ("get_config", "config_demo_variable1"),
         );
         assert_eq!(
-            parse_telecommand("PONGS"),
-            Err(ParsedTelecommandErr::UnknownCommand)
-        );
-        assert_eq!(
-            parse_telecommand(""),
-            Err(ParsedTelecommandErr::UnknownCommand)
-        );
-        assert_eq!(
-            parse_telecommand("LEDON"),
-            Err(ParsedTelecommandErr::UnknownCommand)
-        );
-        assert_eq!(
-            parse_telecommand("LEDOFF"),
-            Err(ParsedTelecommandErr::UnknownCommand)
-        );
-        assert_eq!(
-            parse_telecommand("demo_command_with_arguments({invalid_json})"),
-            Err(ParsedTelecommandErr::DeserializationError(
-                serde_json_core::de::Error::KeyMustBeAString
-            ))
+            extract_function_and_args("set_config(config_demo_variable1, u32(8386))"),
+            ("set_config", "config_demo_variable1, u32(8386)"),
         );
     }
 
     #[test]
-    fn test_parse_json() {
-        let json_data = r#"
-        {
-            "arg_u32": 123,
-            "arg_u64": 45678901234,
-            "arg_bool": true,
-            "arg_f32": 3.14,
-            "arg_f64": 2.718281828459045,
-            "arg_nullable_u32": null
+    fn test_extract_empty_input() {
+        assert_eq!(extract_function_and_args(""), ("", ""));
+        assert_eq!(extract_function_and_args("   "), ("", ""));
+    }
+
+    #[test]
+    fn test_parse_with_empty_registry() {
+        for input in ["PONGS", "PINGS", ""] {
+            assert_eq!(
+                parse_telecommand(input, &[]).err(),
+                Some(ParsedTelecommandErr::UnknownCommand),
+            );
         }
-        "#;
-
-        let (parsed, _rest) =
-            from_slice::<DemoCommandWithArgumentsArgs>(json_data.as_bytes()).unwrap();
-
-        assert_eq!(parsed.arg_u32, 123);
-        assert_eq!(parsed.arg_u64, 45678901234);
-        assert_eq!(parsed.arg_bool, true);
-        assert!((parsed.arg_f32 - 3.14).abs() < f32::EPSILON);
-        assert!((parsed.arg_f64 - 2.718281828459045).abs() < f64::EPSILON);
-        assert_eq!(parsed.arg_nullable_u32, None);
-    }
-
-    #[test]
-    fn test_parse_demo_command_with_arguments() {
-        let json_minified = r#"{"arg_u32":123,"arg_u64":45678901234,"arg_bool":true,"arg_f32":3.14,"arg_f64":2.718281828459045,"arg_nullable_u32":null}"#;
-
-        let command_str = format!("demo_command_with_arguments({})", json_minified);
-        let result = parse_telecommand(&command_str);
-        assert!(matches!(
-            result,
-            Ok(Telecommand::demo_command_with_arguments(_))
-        ));
-
-        assert!(
-            if let Ok(Telecommand::demo_command_with_arguments(args)) = result {
-                args.arg_u32 == 123
-                    && args.arg_u64 == 45678901234
-                    && args.arg_bool == true
-                    && (args.arg_f32 - 3.14).abs() < f32::EPSILON
-                    && (args.arg_f64 - 2.718281828459045).abs() < f64::EPSILON
-                    && args.arg_nullable_u32.is_none()
-            } else {
-                false
-            }
-        );
     }
 }
