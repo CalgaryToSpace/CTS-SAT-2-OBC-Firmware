@@ -46,3 +46,16 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
+
+pub fn get_obc_info() -> Result<(), ExecuteCommandErr> {
+    let commit_hash = env!("COMMIT_HASH");
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+
+    // May need to define a larger buffer once more info is added - git commit hash is 40 characters long
+    let mut buffer = heapless::String::<128>::new();
+    let _ = write!(buffer, "Commit Hash: {:?}\r\n", commit_hash);
+    let _ = write!(buffer, "Build Timestamp (UNIX): {:?}\r\n", build_timestamp);
+
+    send_umbilical_uart(buffer.as_bytes());
+    Ok(())
+}
