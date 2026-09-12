@@ -43,13 +43,15 @@ pub fn set_config_variable(
 }
 
 pub fn get_obc_info() -> Result<(), ExecuteCommandErr> {
-    let commit_hash = env!("COMMIT_HASH");
+    let firmware_version = env!("CARGO_PKG_VERSION");
     let build_timestamp = env!("BUILD_TIMESTAMP");
+    let commit_hash = env!("COMMIT_HASH");
 
-    // May need to define a larger buffer once more info is added - git commit hash is 40 characters long
+    // May need to define a larger buffer if more info is added - git commit hash is 40 characters long
     let mut buffer = heapless::String::<128>::new();
-    let _ = write!(buffer, "Commit Hash: {:?}\r\n", commit_hash);
-    let _ = write!(buffer, "Build Timestamp (UNIX): {:?}\r\n", build_timestamp);
+    let _ = write!(buffer, "Firmware Version: {}\r\n", firmware_version);
+    let _ = write!(buffer, "Build Timestamp (UNIX): {}\r\n", build_timestamp);
+    let _ = write!(buffer, "Commit Hash: {}\r\n", commit_hash);
 
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
