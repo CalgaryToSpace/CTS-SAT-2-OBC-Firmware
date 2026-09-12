@@ -2,10 +2,12 @@ use core::fmt::Write;
 use core::str::FromStr;
 
 use crate::error::ExecuteCommandErr;
+use crate::timekeeping::timestamp_ms;
 use crate::timekeeping::uptime_ms;
 use crate::umbilical_uart::send_umbilical_uart;
 use cts2_obc_telecommands::config::ConfigValue;
 use cts2_obc_telecommands::error::ConfigError;
+use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use cts2_obc_telecommands::get_config_store;
 
 pub mod demo_commands;
@@ -15,6 +17,18 @@ pub fn get_sys_uptime_ms_telecommand(_args: &str) -> Result<(), ExecuteCommandEr
     let buff = heapless::format!(32; "System Uptime: {} ms\r\n", sys_time)
         .unwrap()
         .into_bytes();
+    send_umbilical_uart(&buff);
+    Ok(())
+}
+
+// TODO: Telecommand to convert system uptimes to UNIX timestamp
+pub fn get_timestamp_ms_telecommand(timea_input: &str) -> Result<(), ExecuteCommandErr> {
+    let current_timestamp = timestamp_ms(timea_input)
+        .map_err(|_| ExecuteCommandErr::ResponseFormatError(core::fmt::Error))?;
+    let buff = heapless::format!(64; "System Uptime: {} ms\r\n", current_timestamp)
+        .unwrap()
+        .into_bytes();
+
     send_umbilical_uart(&buff);
     Ok(())
 }

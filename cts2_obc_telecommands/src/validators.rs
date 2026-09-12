@@ -75,3 +75,41 @@ pub fn unix_milliseconds(args: &str) -> Result<(), ParsedTelecommandErr> {
 
     Ok(())
 }
+
+pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
+    if args.is_empty() {
+        return Err(ParsedTelecommandErr::InvalidArgumentRange(0));
+    }
+
+    let mut tokens = [""; 22];
+    let mut timea_iterator = args.split(|c| c == ',' || c == ';' || c == '*');
+
+    // 3. Extract exactly 22 tokens from the input
+    for i in 0..tokens.len() {
+        if let Some(token) = timea_iterator.next() {
+            tokens[i] = token;
+        } else {
+            // Fails if there are fewer than 22 elements
+            return Err(ParsedTelecommandErr::InvalidArgumentRange(0));
+        }
+    }
+
+    // 4. Fail if there are more than 22 elements
+    if timea_iterator.next().is_some() {
+        return Err(ParsedTelecommandErr::InvalidArgumentRange(0));
+    }
+
+    // 5. Validate that the date/time indices (14 through 19) consist entirely of digits
+    for i in 14..=19 {
+        if tokens[i].is_empty() || !tokens[i].chars().all(|c| c.is_ascii_digit()) {
+            return Err(ParsedTelecommandErr::InvalidArgumentRange(i as u8));
+        }
+    }
+
+    // 6. Validate the UTC status string at index 20
+    if tokens[20] != "VALID" {
+        return Err(ParsedTelecommandErr::InvalidArgumentRange(20));
+    }
+
+    Ok(())
+}
