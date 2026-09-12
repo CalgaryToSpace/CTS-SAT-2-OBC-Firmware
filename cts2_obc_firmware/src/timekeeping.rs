@@ -14,6 +14,14 @@ static mut LAST_CYCCNT: u32 = 0;
 /// CPU core clock in Hz (set at init).
 static mut CORE_HZ: u32 = 0;
 
+#[derive(Debug)]
+pub enum TimestampError {
+    InvalidUTCStatus,
+    InvalidTIMEALength,
+    ParseIntError,
+    InitFailed,
+}
+
 /// Initialize the DWT cycle counter. Call once during startup.
 /// `core_hz` is the CPU core clock frequency in Hz (e.g. 64_000_000).
 pub fn init(core_hz: u32) -> Result<(), &'static str> {
@@ -86,4 +94,73 @@ pub fn uptime_ms() -> u64 {
     let cycles128 = total_cycles as u128;
     let ms = (cycles128 * 1000u128 + core_hz / 2u128) / core_hz;
     ms as u64
+}
+
+// Returns UNIX timestamp
+pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
+    
+    // Return Error if initiation failed
+    if (!INIT_DONE.load(Ordering::Acquire)) {
+        return Err(TimestampError::InitFailed);
+    }
+
+    // Initialize array for tokens from input, and initialize iterator
+    let mut tokens = [""; 22];
+    let mut timea_iterator = timea_input.split(|c| c == ',' || c == ';' || c == '*');
+
+    // Store sliced strings from interator in array
+    for i in 0..tokens.len() {
+        if let Some(token) = timea_iterator.next() {
+            tokens[i] = token;
+        } else {
+            // Return error if number of tokens is less than what's expected
+            return Err(TimestampError::InvalidTIMEALength);
+        }
+    }
+
+    // Returns error if there's more than 22 items
+    if timea_iterator.next().is_some() {
+        return Err(TimestampError::InvalidTIMEALength);
+    }
+
+    // Safely parse important UTC date & time components
+    // Throw error if data from these fields is not valid
+    let year: i32 = tokens[14].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let month: i32 = tokens[15].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let day: i32 = tokens[16].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let hour: i32 = tokens[17].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let minute: i32 = tokens[18].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let milliseconds: i32 = tokens[19].parse().map_err(|_| TimestampError::ParseIntError)?;
+    let utc_status: &str = tokens[20];
+
+    // Reject invalid UTC status
+    match utc_status {
+        "VALID" => {}
+        _ => {
+            return Err(TimestampError::InvalidUTCStatus);
+        }
+    }
+    
+    // Embedded trick treats March as the first month of the year, 
+    // and Jan/Feb as the 13th/14th month of the previous year
+    // Makes it easier to account for leap years
+    let (y, m) = if month <= 2 {
+        (year - 1, month + 12)
+    } else {
+        (year, month)
+    };
+    
+    // Calculate total number of days that have passed since year 0
+    let total_days = (365 * y) + (y / 4) - (y / 100) + (y / 400) + ((153 * (m + 1)) / 5) + day;
+
+    // Calculate total days that have passed since UNIX Epoch Time started on Jan 1 1970
+    let days_since_epoch = total_days - 719468;
+
+    // Get total seconds since epoch time
+    let seconds: u64 = (days_since_epoch as u64 * 86400) + (hour as u64 * 3600) + (minute as u64 * 60);
+
+    // Get total milliseconds
+    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64);
+
+    Ok(unix_time_ms)
 }

@@ -40,11 +40,18 @@ pub struct DemoCommandWithArgumentsArgs {
 
 // TODO:Add more args for other telecommands as needed
 
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct TimestampArgs<'a> {
+    pub timea_log: &'a str,
+}
+
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
-pub enum Telecommand {
+pub enum Telecommand<'a> {
     hello_world, // telecommand with no args
     get_sys_uptime,
+    get_timestamp(TimestampArgs<'a>),
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
     get_config(ConfigVariableName),
     set_config(ConfigVariableName, ConfigValue),
@@ -52,7 +59,7 @@ pub enum Telecommand {
 
 // TODO: Replace with meaningful telecommands
 #[allow(clippy::result_unit_err)] // TODO: Fix the () error type to be enum or string
-pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandErr> {
+pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTelecommandErr> {
     // Extract string before the first '(' to identify the command.
     let (command_name, command_args_str) = extract_function_and_args(input);
 
@@ -98,6 +105,15 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
 
             Ok(Telecommand::set_config(name_enum, value_enum))
         }
+        "get_timestamp" => {
+            let timea = parts.next().ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+
+            if parts.next().is_some() {
+                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+
+            Ok(Telecommand::get_timestamp(TimestampArgs { timea_log }))
+        },
         _ => Err(ParsedTelecommandErr::UnknownCommand),
     }
 }

@@ -165,6 +165,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
         Telecommand::set_config(name, value) => {
             crate::telecommand_implementation::set_config_variable(name, value)?
         }
+        Telecommand::get_timestamp(timea_string) => {
+            crate::telecommand_implementation::get_timestamp_ms_telecommand(timea_string)?
+        }
     };
 
     Ok(())
