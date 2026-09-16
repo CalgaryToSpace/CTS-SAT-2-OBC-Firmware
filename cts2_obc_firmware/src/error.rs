@@ -1,4 +1,5 @@
-use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
+pub use cts2_obc_telecommands::error::ExecuteCommandErr;
+use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -8,10 +9,4 @@ pub enum DispatchCommandErr {
 
     #[error("Failed to execute telecommand")]
     ExecuteCommandError(#[from] ExecuteCommandErr),
-}
-
-#[derive(Debug, Error)]
-pub enum ExecuteCommandErr {
-    #[error("Config operation error")]
-    ConfigError(#[from] ConfigError),
 }
