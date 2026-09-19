@@ -1,6 +1,6 @@
 use crate::telecommand_implementation::{
-    demo_commands::run_hello_world_telecommand, get_config_variable, get_sys_uptime_ms_telecommand,
-    set_config_variable,
+    demo_commands::run_hello_world_telecommand, get_config_variable, get_obc_info_telecommand,
+    get_sys_uptime_ms_telecommand, set_config_variable,
 };
 use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
 
@@ -27,6 +27,12 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "set_config",
         exec: set_config_variable,
         num_parameters: 2,
+        readiness: ReadinessLevel::Operation,
+    },
+    TelecommandDefinition {
+        name: "get_obc_info",
+        exec: get_obc_info_telecommand,
+        num_parameters: 0,
         readiness: ReadinessLevel::Operation,
     },
 ];
