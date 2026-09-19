@@ -20,6 +20,7 @@ use stm32l4xx_hal::{
 mod error;
 mod obc_temperature_sensor;
 mod telecommand_implementation;
+mod telecommand_registry;
 mod timekeeping;
 mod umbilical_uart;
 
