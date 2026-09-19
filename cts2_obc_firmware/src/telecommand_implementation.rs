@@ -47,7 +47,7 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     Ok(())
 }
 
-pub fn get_obc_info() -> Result<(), ExecuteCommandErr> {
+pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     let firmware_version = env!("CARGO_PKG_VERSION");
     let build_timestamp = env!("BUILD_TIMESTAMP");
     let commit_hash = env!("COMMIT_HASH");
