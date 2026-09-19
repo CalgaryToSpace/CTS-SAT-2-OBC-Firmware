@@ -44,6 +44,7 @@ pub struct DemoCommandWithArgumentsArgs {
 #[allow(non_camel_case_types)] // Allow telecommand names that align with their function names.
 pub enum Telecommand {
     hello_world, // telecommand with no args
+    hello_jen,
     get_sys_uptime,
     demo_command_with_arguments(DemoCommandWithArgumentsArgs),
     get_config(ConfigVariableName),
@@ -59,6 +60,7 @@ pub fn parse_telecommand(input: &str) -> Result<Telecommand, ParsedTelecommandEr
     let mut parts = command_args_str.split(',').map(|s| s.trim());
     match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
+        "hello_jen" => Ok(Telecommand::hello_jen),
         "demo_command_with_arguments" => {
             let (args, _rest) =
                 from_slice::<DemoCommandWithArgumentsArgs>(command_args_str.as_bytes())
@@ -225,6 +227,14 @@ mod tests {
         assert!(matches!(
             parse_telecommand(" hello_world() "),
             Ok(Telecommand::hello_world)
+        ));
+        assert!(matches!(
+            parse_telecommand("hello_jen()"),
+            Ok(Telecommand::hello_jen)
+        ));
+        assert!(matches!(
+            parse_telecommand(" hello_jen() "),
+            Ok(Telecommand::hello_jen)
         ));
         assert!(matches!(
             parse_telecommand(

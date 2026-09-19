@@ -7,6 +7,8 @@ use stm32l4xx_hal::{self as stm32_hal};
 
 use crate::error::DispatchCommandErr;
 use crate::telecommand_implementation::demo_commands::run_hello_world_telecommand;
+use crate::telecommand_implementation::run_hello_jen_telecommand;
+use crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -153,8 +155,9 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
 
     match cmd {
         Telecommand::hello_world => run_hello_world_telecommand()?,
+        Telecommand::hello_jen => run_hello_jen_telecommand()?,
         Telecommand::demo_command_with_arguments(args) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
+            run_demo_command_with_arguments(args)?
         }
         Telecommand::get_sys_uptime => {
             crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
@@ -165,8 +168,7 @@ fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
         Telecommand::set_config(name, value) => {
             crate::telecommand_implementation::set_config_variable(name, value)?
         }
-    };
-
+    }
     Ok(())
 }
 

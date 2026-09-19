@@ -8,6 +8,12 @@ use cts2_obc_telecommands::get_config_store;
 
 pub mod demo_commands;
 
+pub fn run_hello_jen_telecommand() -> Result<(), ExecuteCommandErr> {
+    send_umbilical_uart(b"HELLO JEN\r\n");
+
+    Ok(())
+}
+
 pub fn get_sys_uptime_ms_telecommand() -> Result<(), ExecuteCommandErr> {
     let sys_time = uptime_ms();
     let buff = heapless::format!(32; "System Uptime: {} ms\r\n", sys_time)
