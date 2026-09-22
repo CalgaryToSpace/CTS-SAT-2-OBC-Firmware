@@ -3,23 +3,15 @@ use crate::shared;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
-static CONFIG_VARIABLES: [ConfigVariable; 2] = [
-    ConfigVariable {
-        name: "heartbeat_ms",
-        value: ConfigStorage::U32(AtomicU32::new(1000)),
-    },
-    ConfigVariable {
-        name: "config_demo_variable1",
-        value: ConfigStorage::U32(AtomicU32::new(123)),
-    },
-];
+mod registry;
+pub use registry::*;
 
 pub(crate) static CONFIG_STORE: ConfigStore = ConfigStore {
-    variables: &CONFIG_VARIABLES,
+    variables: registry::CONFIG_VARIABLES,
 };
 
 pub struct ConfigStore {
-    variables: &'static [ConfigVariable],
+    variables: &'static [&'static ConfigVariable],
 }
 
 pub struct ConfigVariable {
@@ -120,7 +112,7 @@ impl ConfigStore {
         self.find(name)?.set(value)
     }
 
-    pub fn get_all_vars(&self) -> &[ConfigVariable] {
+    pub fn get_all_vars(&self) -> &[&ConfigVariable] {
         self.variables
     }
 }

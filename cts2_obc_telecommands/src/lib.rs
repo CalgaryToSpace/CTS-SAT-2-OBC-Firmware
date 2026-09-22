@@ -145,15 +145,15 @@ mod tests {
 
     #[test]
     fn test_config_store_get_set() {
-        let store = ConfigStore::new();
+        let store = get_config_store();
 
         // Test default values
         assert_eq!(
-            store.get(ConfigVariableName::HeartbeatMs),
+            store.get(ConfigVariableName::HeartbeatMs).unwrap(),
             ConfigValue::U32(1000)
         );
         assert_eq!(
-            store.get(ConfigVariableName::ConfigDemoVariable1),
+            store.get(ConfigVariableName::ConfigDemoVariable1).unwrap(),
             ConfigValue::U32(123)
         );
 
@@ -164,7 +164,7 @@ mod tests {
                 .is_ok()
         );
         assert_eq!(
-            store.get(ConfigVariableName::HeartbeatMs),
+            store.get(ConfigVariableName::HeartbeatMs).unwrap(),
             ConfigValue::U32(2000)
         );
 
@@ -177,14 +177,14 @@ mod tests {
                 .is_ok()
         );
         assert_eq!(
-            store.get(ConfigVariableName::ConfigDemoVariable1),
+            store.get(ConfigVariableName::ConfigDemoVariable1).unwrap(),
             ConfigValue::U32(42)
         );
     }
 
     #[test]
     fn test_config_store_set_type_mismatch() {
-        let store = ConfigStore::new();
+        let store = get_config_store();
 
         let result = store.set(
             ConfigVariableName::ConfigDemoVariable1,
@@ -220,7 +220,7 @@ mod tests {
             .set(ConfigVariableName::HeartbeatMs, ConfigValue::U32(500))
             .unwrap();
         assert_eq!(
-            store.get(ConfigVariableName::HeartbeatMs),
+            store.get(ConfigVariableName::HeartbeatMs).unwrap(),
             ConfigValue::U32(500)
         );
     }
