@@ -7,7 +7,7 @@
 extern crate std;
 
 pub mod config;
-use config::{ConfigStore, CONFIG_STORE};
+use config::{CONFIG_STORE, ConfigStore};
 
 pub mod error;
 use error::ParsedTelecommandErr;
@@ -73,7 +73,7 @@ pub fn parse_telecommand<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ConfigValue, HEARTBEAT_MS, CONFIG_DEMO_VARIABLE1};
+    use crate::config::{CONFIG_DEMO_VARIABLE1, ConfigValue, HEARTBEAT_MS};
     use crate::error::ConfigError;
     use crate::telecommand_definitions::ReadinessLevel;
     use core::str::FromStr;
@@ -158,11 +158,7 @@ mod tests {
         );
 
         // Test setting values
-        assert!(
-            store
-                .set(HEARTBEAT_MS.name, ConfigValue::U32(2000))
-                .is_ok()
-        );
+        assert!(store.set(HEARTBEAT_MS.name, ConfigValue::U32(2000)).is_ok());
         assert_eq!(
             store.get(HEARTBEAT_MS.name).unwrap(),
             ConfigValue::U32(2000)
@@ -170,10 +166,7 @@ mod tests {
 
         assert!(
             store
-                .set(
-                    CONFIG_DEMO_VARIABLE1.name,
-                    ConfigValue::U32(42)
-                )
+                .set(CONFIG_DEMO_VARIABLE1.name, ConfigValue::U32(42))
                 .is_ok()
         );
         assert_eq!(
@@ -186,10 +179,7 @@ mod tests {
     fn test_config_store_set_type_mismatch() {
         let store = get_config_store();
 
-        let result = store.set(
-            CONFIG_DEMO_VARIABLE1.name,
-            ConfigValue::F32(42.0),
-        );
+        let result = store.set(CONFIG_DEMO_VARIABLE1.name, ConfigValue::F32(42.0));
 
         assert_eq!(result, Err(ConfigError::ConfigVariableNotThisType));
     }
@@ -216,13 +206,8 @@ mod tests {
     fn test_global_config_store() {
         let store = get_config_store();
 
-        store
-            .set(HEARTBEAT_MS.name, ConfigValue::U32(500))
-            .unwrap();
-        assert_eq!(
-            store.get(HEARTBEAT_MS.name).unwrap(),
-            ConfigValue::U32(500)
-        );
+        store.set(HEARTBEAT_MS.name, ConfigValue::U32(500)).unwrap();
+        assert_eq!(store.get(HEARTBEAT_MS.name).unwrap(), ConfigValue::U32(500));
     }
 
     #[test]

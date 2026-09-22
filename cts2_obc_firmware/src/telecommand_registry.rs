@@ -1,5 +1,5 @@
-use crate::telecommand_implementation::*;
 use crate::telecommand_implementation::demo_commands::*;
+use crate::telecommand_implementation::*;
 use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
 
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[

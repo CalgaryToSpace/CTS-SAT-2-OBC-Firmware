@@ -11,7 +11,4 @@ pub static CONFIG_DEMO_VARIABLE1: ConfigVariable = ConfigVariable {
     value: ConfigStorage::U32(AtomicU32::new(123)),
 };
 
-pub static CONFIG_VARIABLES: &[&ConfigVariable] = &[
-    &HEARTBEAT_MS,
-    &CONFIG_DEMO_VARIABLE1,
-];
+pub static CONFIG_VARIABLES: &[&ConfigVariable] = &[&HEARTBEAT_MS, &CONFIG_DEMO_VARIABLE1];
