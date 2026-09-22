@@ -1,33 +1,70 @@
 use crate::error::ConfigError;
-use core::str::FromStr;
-use core::sync::atomic::{AtomicU32, Ordering};
-
 use crate::shared;
+use core::str::FromStr;
+use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
-// Global configuration store
-// There is no float for atomic, consider
-// using AtomicU32 to store and just parse as float
+static CONFIG_VARIABLES: [ConfigVariable; 2] = [
+    ConfigVariable {
+        name: "heartbeat_ms",
+        value: ConfigStorage::U32(AtomicU32::new(1000)),
+    },
+    ConfigVariable {
+        name: "config_demo_variable1",
+        value: ConfigStorage::U32(AtomicU32::new(123)),
+    },
+];
+
+pub(crate) static CONFIG_STORE: ConfigStore = ConfigStore {
+    variables: &CONFIG_VARIABLES,
+};
+
 pub struct ConfigStore {
-    heartbeat_ms: AtomicU32,
-    config_demo_variable1: AtomicU32,
+    variables: &'static [ConfigVariable],
 }
 
-// All configuration variable names
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfigVariableName {
-    HeartbeatMs,
-    ConfigDemoVariable1,
+struct ConfigVariable {
+    name: &'static str,
+    value: ConfigStorage,
 }
 
-impl FromStr for ConfigVariableName {
-    type Err = ConfigError;
+#[allow(dead_code)]
+enum ConfigStorage {
+    U32(AtomicU32),
+    Bool(AtomicBool),
+    F32(AtomicU32),
+    I32(AtomicI32),
+    U8(AtomicU8),
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "heartbeat_ms" => Ok(ConfigVariableName::HeartbeatMs),
-            "config_demo_variable1" => Ok(ConfigVariableName::ConfigDemoVariable1),
-            _ => Err(ConfigError::ConfigVariableNotFound),
+impl ConfigStorage {
+    fn get(&self) -> ConfigValue {
+        match self {
+            Self::U32(value) => ConfigValue::U32(value.load(Ordering::Relaxed)),
+            Self::Bool(value) => ConfigValue::Bool(value.load(Ordering::Relaxed)),
+            Self::F32(value) => ConfigValue::F32(f32::from_bits(value.load(Ordering::Relaxed))),
+            Self::I32(value) => ConfigValue::I32(value.load(Ordering::Relaxed)),
+            Self::U8(value) => ConfigValue::U8(value.load(Ordering::Relaxed)),
         }
+    }
+
+    fn set(&self, value: ConfigValue) -> Result<(), ConfigError> {
+        match (self, value) {
+            (Self::U32(storage), ConfigValue::U32(value)) => {
+                storage.store(value, Ordering::Relaxed)
+            }
+            (Self::Bool(storage), ConfigValue::Bool(value)) => {
+                storage.store(value, Ordering::Relaxed)
+            }
+            (Self::F32(storage), ConfigValue::F32(value)) => {
+                storage.store(value.to_bits(), Ordering::Relaxed)
+            }
+            (Self::I32(storage), ConfigValue::I32(value)) => {
+                storage.store(value, Ordering::Relaxed)
+            }
+            (Self::U8(storage), ConfigValue::U8(value)) => storage.store(value, Ordering::Relaxed),
+            _ => return Err(ConfigError::ConfigVariableNotThisType),
+        }
+        Ok(())
     }
 }
 
@@ -67,39 +104,26 @@ impl FromStr for ConfigValue {
 }
 
 impl ConfigStore {
-    // create new config store with default values
-    #[allow(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self {
-            heartbeat_ms: AtomicU32::new(1000),
-            config_demo_variable1: AtomicU32::new(123),
-        }
+    fn find(&self, name: &str) -> Result<&ConfigStorage, ConfigError> {
+        self.variables
+            .iter()
+            .find(|variable| variable.name == name)
+            .map(|variable| &variable.value)
+            .ok_or(ConfigError::ConfigVariableNotFound)
     }
 
-    // get a config value by name
-    pub fn get(&self, name: ConfigVariableName) -> ConfigValue {
-        match name {
-            ConfigVariableName::HeartbeatMs => {
-                ConfigValue::U32(self.heartbeat_ms.load(Ordering::Relaxed))
-            }
-            ConfigVariableName::ConfigDemoVariable1 => {
-                ConfigValue::U32(self.config_demo_variable1.load(Ordering::Relaxed))
-            }
-        }
+    pub fn get(&self, name: &str) -> Result<ConfigValue, ConfigError> {
+        Ok(self.find(name)?.get())
     }
 
-    // set a configuration value by name
-    pub fn set(&self, name: ConfigVariableName, value: ConfigValue) -> Result<(), ConfigError> {
-        match (name, value) {
-            (ConfigVariableName::HeartbeatMs, ConfigValue::U32(v)) => {
-                self.heartbeat_ms.store(v, Ordering::Relaxed);
-                Ok(())
-            }
-            (ConfigVariableName::ConfigDemoVariable1, ConfigValue::U32(v)) => {
-                self.config_demo_variable1.store(v, Ordering::Relaxed);
-                Ok(())
-            }
-            _ => Err(ConfigError::ConfigVariableNotThisType),
-        }
+    pub fn set(&self, name: &str, value: ConfigValue) -> Result<(), ConfigError> {
+        self.find(name)?.set(value)
+    }
+
+    /// Reads each variable when visited; not a simultaneous snapshot.
+    pub fn get_all(&self) -> impl Iterator<Item = (&'static str, ConfigValue)> + '_ {
+        self.variables
+            .iter()
+            .map(|variable| (variable.name, variable.value.get()))
     }
 }

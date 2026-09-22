@@ -7,7 +7,7 @@
 extern crate std;
 
 pub mod config;
-use config::ConfigStore;
+use config::{ConfigStore, CONFIG_STORE};
 
 pub mod error;
 use error::ParsedTelecommandErr;
@@ -17,9 +17,6 @@ use telecommand_definitions::TelecommandDefinition;
 
 mod shared;
 use shared::extract_function_and_args;
-
-// global static singleton for configuration
-static CONFIG_STORE: ConfigStore = ConfigStore::new();
 
 // get reference to the global configuration store
 pub fn get_config_store() -> &'static ConfigStore {
