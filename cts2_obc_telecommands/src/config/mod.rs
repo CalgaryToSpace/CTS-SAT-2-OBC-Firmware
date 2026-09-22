@@ -6,8 +6,8 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 mod registry;
 pub use registry::*;
 
-pub(crate) static CONFIG_STORE: ConfigStore = ConfigStore {
-    variables: registry::CONFIG_VARIABLES,
+pub static CONFIG_STORE: ConfigStore = ConfigStore {
+    variables: CONFIG_VARIABLES,
 };
 
 pub struct ConfigStore {
