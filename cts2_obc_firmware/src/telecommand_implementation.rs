@@ -48,9 +48,11 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
 }
 
 pub fn get_all_config_variables(_args: &str) -> Result<(), ExecuteCommandErr> {
-    for (name, value) in get_config_store().get_all() {
+    for config_var in get_config_store().get_all_vars() {
         let mut buffer = heapless::String::<128>::new();
-        write!(buffer, "{}: {:?}\r\n", name, value)?;
+        let name = config_var.name;
+        let value = config_var.value.get();
+        write!(buffer, "{} = {:?}\r\n", name, value)?;
         send_umbilical_uart(buffer.as_bytes());
     }
     Ok(())

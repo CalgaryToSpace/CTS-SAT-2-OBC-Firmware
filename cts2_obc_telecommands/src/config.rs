@@ -22,13 +22,13 @@ pub struct ConfigStore {
     variables: &'static [ConfigVariable],
 }
 
-struct ConfigVariable {
-    name: &'static str,
-    value: ConfigStorage,
+pub struct ConfigVariable {
+    pub name: &'static str,
+    pub value: ConfigStorage,
 }
 
 #[allow(dead_code)]
-enum ConfigStorage {
+pub enum ConfigStorage {
     U32(AtomicU32),
     Bool(AtomicBool),
     F32(AtomicU32),
@@ -37,7 +37,7 @@ enum ConfigStorage {
 }
 
 impl ConfigStorage {
-    fn get(&self) -> ConfigValue {
+    pub fn get(&self) -> ConfigValue {
         match self {
             Self::U32(value) => ConfigValue::U32(value.load(Ordering::Relaxed)),
             Self::Bool(value) => ConfigValue::Bool(value.load(Ordering::Relaxed)),
@@ -120,10 +120,7 @@ impl ConfigStore {
         self.find(name)?.set(value)
     }
 
-    /// Reads each variable when visited; not a simultaneous snapshot.
-    pub fn get_all(&self) -> impl Iterator<Item = (&'static str, ConfigValue)> + '_ {
+    pub fn get_all_vars(&self) -> &[ConfigVariable] {
         self.variables
-            .iter()
-            .map(|variable| (variable.name, variable.value.get()))
     }
 }
