@@ -46,3 +46,9 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
+
+pub fn get_all_config_variables(_args: &str) -> Result<(), ExecuteCommandErr> {
+    let config_store = get_config_store();
+    Ok(())
+}
+
