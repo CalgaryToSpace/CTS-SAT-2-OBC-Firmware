@@ -47,7 +47,7 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     Ok(())
 }
 
-pub fn get_all_config_variables_json(_args: &str) -> Result<(), ExecuteCommandErr> {
+pub fn get_all_config_variables_jsonl(_args: &str) -> Result<(), ExecuteCommandErr> {
     for config_var in get_config_store().get_all_vars() {
         let mut buffer = [0; 128];
         let len = config_var.to_json(&mut buffer)?;

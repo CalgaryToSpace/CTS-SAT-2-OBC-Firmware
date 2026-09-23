@@ -28,8 +28,8 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::Operation,
     },
     TelecommandDefinition {
-        name: "get_all_config_variables_json",
-        exec: get_all_config_variables_json,
+        name: "get_all_config_variables_jsonl",
+        exec: get_all_config_variables_jsonl,
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
     },
