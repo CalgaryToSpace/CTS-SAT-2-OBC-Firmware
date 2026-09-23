@@ -2,6 +2,7 @@ use crate::error::ConfigError;
 use crate::shared;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
+use serde_json_core::ser;
 
 mod registry;
 pub use registry::*;
@@ -17,6 +18,24 @@ pub struct ConfigStore {
 pub struct ConfigVariable {
     pub name: &'static str,
     pub value: ConfigStorage,
+}
+
+impl ConfigVariable {
+    pub fn to_json(&self, buffer: &mut [u8]) -> Result<usize, ser::Error> {
+        #[derive(serde::Serialize)]
+        struct Response<'a> {
+            name: &'a str,
+            value: ConfigValue,
+        }
+
+        serde_json_core::to_slice(
+            &Response {
+                name: self.name,
+                value: self.value.get(),
+            },
+            buffer,
+        )
+    }
 }
 
 #[allow(dead_code)]
@@ -60,7 +79,8 @@ impl ConfigStorage {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+#[serde(untagged)]
 pub enum ConfigValue {
     U32(u32),
     Bool(bool),
@@ -122,8 +142,8 @@ mod tests {
     use super::*;
 
     static TEST_VAR1: ConfigVariable = ConfigVariable {
-      name: "test_var1",
-      value: ConfigStorage::U32(AtomicU32::new(0)),
+        name: "test_var1",
+        value: ConfigStorage::U32(AtomicU32::new(0)),
     };
     static TEST_VAR2: ConfigVariable = ConfigVariable {
         name: "test_var2",
@@ -132,7 +152,7 @@ mod tests {
     static STORE_TEST: ConfigStore = ConfigStore {
         variables: &[&TEST_VAR1, &TEST_VAR2],
     };
-    
+
     #[test]
     fn test_config_get_all_vars() {
         let vars = STORE_TEST.get_all_vars();

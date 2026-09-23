@@ -47,13 +47,12 @@ pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     Ok(())
 }
 
-pub fn get_all_config_variables(_args: &str) -> Result<(), ExecuteCommandErr> {
+pub fn get_all_config_variables_json(_args: &str) -> Result<(), ExecuteCommandErr> {
     for config_var in get_config_store().get_all_vars() {
-        let mut buffer = heapless::String::<128>::new();
-        let name = config_var.name;
-        let value = config_var.value.get();
-        write!(buffer, "{} = {:?}\r\n", name, value)?;
-        send_umbilical_uart(buffer.as_bytes());
+        let mut buffer = [0; 128];
+        let len = config_var.to_json(&mut buffer)?;
+        send_umbilical_uart(&buffer[..len]);
+        send_umbilical_uart(b"\r\n");
     }
     Ok(())
 }
