@@ -7,12 +7,14 @@ The configuration variables are stored in a ConfigStore struct, which is a singl
 The ConfigStore struct has a get and set function that allows you to get and set the value of a configuration variable.
 
 ## HOW TO ADD A NEW CONFIGURATION VARIABLE:
-1. Add actual variable to ConfigStore struct
-2. Add default value to ConfigStore::new()
-3. Add an enum to ConfigVariableName enum
-4. Add a string version to match in ConfigVariableName::from_str()
-5. Add a match case to ConfigStore::get()
-6. Add a match case to ConfigStore::set()
+- Add a new static variable with name and value in config/registry.rs
+- Add the reference in the CONFIG_VARIABLES registry in the same file
+
+## HOW TO ADD A NEW VALUE TYPE:
+- Add a new type in ConfigStorage of config/mod.rs
+- Add new row in get and set of config storage how would you encode and decode the value of the new type (mostly will be the same without any changes only special case like float will need to be converted to bits and stored in AtomicU32)
+- Add a new type in ConfigValue, this can helps return the value from getter and setter of the ConfigStore
+- Add support for parsing for impl FromStr for ConfigValue in config/mod.rs, this will help to parse the value from string to the correct type of ConfigValue
 
 ## Notes:
 - Using set_config in telecommand must specify the correct type for the variable being set. The type of the variable will be determined in the get and set function of the ConfigStore implementation
