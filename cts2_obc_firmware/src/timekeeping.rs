@@ -22,6 +22,18 @@ pub enum TimestampError {
     InitFailed,
 }
 
+// Specialized error messages
+impl TimestampError {
+    pub fn message(&self) -> &'static str  {
+        match self {
+            TimestampError::InvalidUTCStatus => "UTC Timestamp status is not labelled 'VALID'",
+            TimestampError::InvalidTIMEALength => "Invalid token number: Expected exactly 22 tokens",
+            TimestampError::ParseIntError => "Could not parse integer values",
+            TimestampError::InitFailed => "System initialization failed",
+        }
+    }
+}
+
 /// Initialize the DWT cycle counter. Call once during startup.
 /// `core_hz` is the CPU core clock frequency in Hz (e.g. 64_000_000).
 pub fn init(core_hz: u32) -> Result<(), &'static str> {
@@ -134,11 +146,8 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     let utc_status: &str = tokens[20];
 
     // Reject invalid UTC status
-    match utc_status {
-        "VALID" => {}
-        _ => {
-            return Err(TimestampError::InvalidUTCStatus);
-        }
+    if (utc_status != "VALID") {
+        return Err(TimestampError::InvalidUTCStatus);
     }
     
     // Embedded trick treats March as the first month of the year, 

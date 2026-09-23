@@ -24,12 +24,14 @@ pub fn get_sys_uptime_ms_telecommand() -> Result<(), ExecuteCommandErr> {
 pub fn get_timestamp_ms_telecommand<'a>(timea_input: TimestampArgs<'a>) -> Result<(), ExecuteCommandErr> {
     match timestamp_ms(timea_input.timea_log) {
         Ok(current_timestamp) => {
-            let buff = heapless::format!(64; "System Uptime: {} ms\r\n", current_timestamp).unwrap().into_bytes();
+            let buff = heapless::format!(64; "Current UNIX Timestamp: {} ms\r\n", current_timestamp).unwrap().into_bytes();
 
             send_umbilical_uart(&buff);
         }
-        Err(_) => {
-            
+        Err(err) => {
+            let msg = heapless::format!(128; "Failed to get timestamp: {}\r\n", err.message()).unwrap().into_bytes();
+
+            send_umbilical_uart(&msg);
         }
     }
     Ok(())
