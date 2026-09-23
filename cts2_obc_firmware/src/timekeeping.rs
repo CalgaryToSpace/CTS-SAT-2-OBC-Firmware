@@ -100,7 +100,7 @@ pub fn uptime_ms() -> u64 {
 pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     
     // Return Error if initiation failed
-    if (!INIT_DONE.load(Ordering::Acquire)) {
+    if !INIT_DONE.load(Ordering::Acquire) {
         return Err(TimestampError::InitFailed);
     }
 

@@ -64,6 +64,7 @@ pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTe
     let (command_name, command_args_str) = extract_function_and_args(input);
 
     let mut parts = command_args_str.split(',').map(|s| s.trim());
+
     match command_name {
         "hello_world" => Ok(Telecommand::hello_world),
         "demo_command_with_arguments" => {
@@ -106,10 +107,15 @@ pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTe
             Ok(Telecommand::set_config(name_enum, value_enum))
         }
         "get_timestamp" => {
-            let timea = parts.next().ok_or(ParsedTelecommandErr::MissingArgument(0))?;
+            let timea_log = command_args_str.trim();
+            // .next().ok_or(ParsedTelecommandErr::MissingArgument(0))?;
 
-            if parts.next().is_some() {
-                return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            // if parts.next().is_some() {
+            //     return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            // }
+
+            if timea_log.is_empty() {
+                return Err(ParsedTelecommandErr::MissingArgument(0));
             }
 
             Ok(Telecommand::get_timestamp(TimestampArgs { timea_log }))
