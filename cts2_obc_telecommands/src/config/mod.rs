@@ -116,3 +116,28 @@ impl ConfigStore {
         self.variables
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static TEST_VAR1: ConfigVariable = ConfigVariable {
+      name: "test_var1",
+      value: ConfigStorage::U32(AtomicU32::new(0)),
+    };
+    static TEST_VAR2: ConfigVariable = ConfigVariable {
+        name: "test_var2",
+        value: ConfigStorage::Bool(AtomicBool::new(false)),
+    };
+    static STORE_TEST: ConfigStore = ConfigStore {
+        variables: &[&TEST_VAR1, &TEST_VAR2],
+    };
+    
+    #[test]
+    fn test_config_get_all_vars() {
+        let vars = STORE_TEST.get_all_vars();
+        assert_eq!(vars.len(), 2);
+        assert_eq!(vars[0].name, "test_var1");
+        assert_eq!(vars[1].name, "test_var2");
+    }
+}
