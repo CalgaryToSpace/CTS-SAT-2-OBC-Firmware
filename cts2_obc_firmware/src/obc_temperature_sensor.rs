@@ -1,3 +1,5 @@
+/*
+
 use core::cell::RefCell;
 use cortex_m::interrupt;
 use cortex_m::interrupt::Mutex;
@@ -278,4 +280,4 @@ where
     let delay(temp_precision_conversion_delay_ms);
 
     return 5;
-}
+} */
