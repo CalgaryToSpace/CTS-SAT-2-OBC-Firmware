@@ -39,10 +39,16 @@ pub struct Telecommand<'a> {
 }
 
 // TODO: Replace with meaningful telecommands
+// A very important note. Every command needs to end with a !
+// For the parser to acknowledge it, meaning that when sending
+// data through SerialTest, the parse_telecommand will accept any strings
+// until a '!' is sent then it interprets everything before it as a command
+// This is because '!' acts as a delimiter
 pub fn parse_telecommand<'a>(
     input: &'a str,
     telecommand_definitions: &'static [TelecommandDefinition],
 ) -> Result<Telecommand<'a>, ParsedTelecommandErr> {
+    // Removes any leading and trailing white spaces
     let input = input.trim();
 
     // Telecommand must start with "CTS2+"
@@ -55,15 +61,8 @@ pub fn parse_telecommand<'a>(
         .strip_suffix('!')
         .ok_or(ParsedTelecommandErr::MissingEndMarker)?;
 
-    // Separate:
-    //
-    // sample(first,second)
-    //
-    // from:
-    //
-    // @tssent=...
-    // @tsexec=...
-    // @resp_fname=...
+    // We then separate the command suffixes like
+    // @tssent or @tsexec by splitting the string at '@'
     let mut sections = input.split('@');
 
     let command_part = sections

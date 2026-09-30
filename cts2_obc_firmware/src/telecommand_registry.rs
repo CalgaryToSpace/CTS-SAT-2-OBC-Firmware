@@ -5,6 +5,13 @@ use crate::telecommand_implementation::{
 use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
+// For now, each command has an appropriate validator
+// that checks whether the appropriate argument exists, its type, its range, etc.
+// For example, hello_world accepts no commands at all
+// So its validator is the no_args that ensures there are no arguments being sent
+// Into the hello_world command.
+// In contrasts, the set_config needs to validate that the argument is of type u32
+// that the argument exists and not empty, etc.
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
     TelecommandDefinition {
         name: "hello_world",

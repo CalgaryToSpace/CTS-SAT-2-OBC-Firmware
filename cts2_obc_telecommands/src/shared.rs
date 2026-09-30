@@ -1,4 +1,5 @@
 pub fn extract_function_and_args(input: &str) -> (&str, &str) {
+    //
     let command_name = input.trim().split('(').next().unwrap_or("");
     let command_args_str = input
         .trim()
