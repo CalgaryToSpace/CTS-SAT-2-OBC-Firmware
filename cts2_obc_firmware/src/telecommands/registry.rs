@@ -1,5 +1,5 @@
 use super::{config, demo, system};
-use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
+use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
     TelecommandDefinition {

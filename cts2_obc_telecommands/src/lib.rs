@@ -12,8 +12,8 @@ use config::ConfigStore;
 pub mod error;
 use error::ParsedTelecommandErr;
 
-pub mod telecommand_definitions;
-use telecommand_definitions::TelecommandDefinition;
+pub mod definitions;
+use definitions::TelecommandDefinition;
 
 mod shared;
 use shared::extract_function_and_args;
@@ -78,7 +78,7 @@ mod tests {
     use super::*;
     use crate::config::{ConfigValue, ConfigVariableName};
     use crate::error::ConfigError;
-    use crate::telecommand_definitions::ReadinessLevel;
+    use crate::definitions::ReadinessLevel;
     use core::str::FromStr;
 
     const SAMPLE_DEFINITIONS: &[TelecommandDefinition] = &[
