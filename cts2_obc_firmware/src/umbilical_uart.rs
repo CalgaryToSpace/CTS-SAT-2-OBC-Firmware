@@ -5,7 +5,7 @@ use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
 use crate::error::DispatchCommandErr;
-use crate::telecommand_registry::TELECOMMAND_DEFINITIONS;
+use crate::telecommands::registry::TELECOMMAND_DEFINITIONS;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
