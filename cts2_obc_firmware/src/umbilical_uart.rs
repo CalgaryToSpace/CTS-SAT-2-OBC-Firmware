@@ -1,11 +1,8 @@
-use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_telecommands::parse_telecommand;
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::error::DispatchCommandErr;
-use crate::telecommands::registry::TELECOMMAND_DEFINITIONS;
+use crate::telecommands::exec::executor::dispatch_command;
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -96,31 +93,6 @@ pub fn process_umbilical_commands() {
             idx += 1;
         }
     }
-}
-
-// TODO: Make different functions to handle each separate command.
-// TODO: Fix the () error type to be enum or string
-// TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
-    let cmd = match parse_telecommand(cmd_str, TELECOMMAND_DEFINITIONS) {
-        Ok(cmd) => cmd,
-        Err(err) => {
-            send_uart_error(&err);
-            return Err(err.into());
-        }
-    };
-
-    if let Err(err) = (cmd.def.exec)(cmd.args) {
-        send_uart_error(&err);
-        return Err(err.into());
-    }
-    Ok(())
-}
-
-fn send_uart_error(err: &impl core::fmt::Display) {
-    let mut msg = heapless::String::<128>::new();
-    let _ = write!(msg, "ERR: {err}\r\n");
-    send_umbilical_uart(msg.as_bytes());
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).

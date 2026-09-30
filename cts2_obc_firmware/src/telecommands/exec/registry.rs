@@ -1,4 +1,4 @@
-use super::{config, demo, system};
+use super::super::implementation::{config, demo, system};
 use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
