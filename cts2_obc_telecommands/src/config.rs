@@ -103,3 +103,77 @@ impl ConfigStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_store_get_set() {
+        let store = ConfigStore::new();
+
+        // Test default values
+        assert_eq!(
+            store.get(ConfigVariableName::HeartbeatMs),
+            ConfigValue::U32(1000)
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::ConfigDemoVariable1),
+            ConfigValue::U32(123)
+        );
+
+        // Test setting values
+        assert!(
+            store
+                .set(ConfigVariableName::HeartbeatMs, ConfigValue::U32(2000))
+                .is_ok()
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::HeartbeatMs),
+            ConfigValue::U32(2000)
+        );
+
+        assert!(
+            store
+                .set(
+                    ConfigVariableName::ConfigDemoVariable1,
+                    ConfigValue::U32(42)
+                )
+                .is_ok()
+        );
+        assert_eq!(
+            store.get(ConfigVariableName::ConfigDemoVariable1),
+            ConfigValue::U32(42)
+        );
+    }
+
+    #[test]
+    fn test_config_store_set_type_mismatch() {
+        let store = ConfigStore::new();
+
+        let result = store.set(
+            ConfigVariableName::ConfigDemoVariable1,
+            ConfigValue::F32(42.0),
+        );
+
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotThisType));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_variable() {
+        let result = ConfigVariableName::from_str("unknown_variable");
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotFound));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_type() {
+        let result = ConfigValue::from_str("unknown_type(42)");
+        assert_eq!(result, Err(ConfigError::ConfigVariableUnknownType));
+    }
+
+    #[test]
+    fn test_config_store_parse_invalid_value() {
+        let result = ConfigValue::from_str("u32(not_a_number)");
+        assert_eq!(result, Err(ConfigError::ConfigParseValueTypeError));
+    }
+}
