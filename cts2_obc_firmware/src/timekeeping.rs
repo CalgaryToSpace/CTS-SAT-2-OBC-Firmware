@@ -26,10 +26,12 @@ pub enum TimestampError {
 
 // Specialized error messages
 impl TimestampError {
-    pub fn message(&self) -> &'static str  {
+    pub fn message(&self) -> &'static str {
         match self {
             TimestampError::InvalidUTCStatus => "UTC Timestamp status is not labelled 'VALID'",
-            TimestampError::InvalidTIMEALength => "Invalid token number: Expected exactly 22 tokens",
+            TimestampError::InvalidTIMEALength => {
+                "Invalid token number: Expected exactly 22 tokens"
+            }
             TimestampError::ParseIntError => "Could not parse integer values",
             TimestampError::InitFailed => "System initialization failed",
         }
@@ -142,6 +144,7 @@ pub fn unix_time_ms() -> Option<u64> {
 }
 
 // Returns UNIX timestamp
+// * IMPORTANT: this function calculates based on local time, not global UTC time. If this needs to be changed, please let me know
 pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     // Return Error if initiation failed
     if !INIT_DONE.load(Ordering::Acquire) {
@@ -213,8 +216,11 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     let seconds: u64 =
         (days_since_epoch as u64 * 86400) + (hour as u64 * 3600) + (minute as u64 * 60);
 
-    // Get total milliseconds
-    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64);
+    // Get total milliseconds. Add 21600000 for local time
+    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64) + 21600000;
 
     Ok(unix_time_ms)
 }
+
+// Note: This is a valid TIMEA Log (for testing get_timestamp()):
+// #TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,9,29,19,03,45000,VALID*1100ad64
