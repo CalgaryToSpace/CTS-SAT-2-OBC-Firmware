@@ -33,6 +33,12 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
     },
+    TelecommandDefinition {
+        name: "get_obc_info",
+        exec: get_obc_info_telecommand,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {
