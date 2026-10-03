@@ -21,6 +21,7 @@ mod telecommand_implementation;
 mod telecommand_registry;
 mod timekeeping;
 mod umbilical_uart;
+mod log;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
