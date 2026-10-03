@@ -17,11 +17,11 @@ use stm32l4xx_hal::{
 };
 
 mod error;
+mod reset;
 mod telecommand_implementation;
 mod telecommand_registry;
 mod timekeeping;
 mod umbilical_uart;
-mod reset;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
@@ -51,7 +51,7 @@ fn entry_point() -> ! {
     // Read and clear reset cause flags
     let reset_cause = reset::ResetCause::from_csr(peripheral.RCC.csr.read());
     peripheral.RCC.csr.modify(|_, w| w.rmvf().set_bit());
-    
+
     // --- Clock setup ---
     critical_section(|cs| {
         PERIPHERAL_RCC
