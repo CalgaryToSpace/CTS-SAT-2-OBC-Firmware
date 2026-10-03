@@ -109,7 +109,7 @@ pub fn uptime_ms() -> u64 {
 }
 
 // Returns UNIX timestamp
-// * IMPORTANT: this function calculates based on local time, not global UTC time. If this needs to be changed, please let me know
+// * IMPORTANT: this function calculates global UTC time
 pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     
     // Return Error if initiation failed
@@ -170,7 +170,7 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     let seconds: u64 = (days_since_epoch as u64 * 86400) + (hour as u64 * 3600) + (minute as u64 * 60);
 
     // Get total milliseconds. Add 21600000 for local time
-    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64) + 21600000;
+    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64);
 
     Ok(unix_time_ms)
 }
