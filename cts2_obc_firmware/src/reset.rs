@@ -22,10 +22,10 @@ impl ResetCause {
             Self::IndependentWatchdog
         } else if csr.sftrstf().bit_is_set() {
             Self::Software
-        } else if csr.pinrstf().bit_is_set() {
-            Self::ExternalPin
         } else if csr.borrstf().bit_is_set() {
             Self::BrownOut
+        } else if csr.pinrstf().bit_is_set() {
+            Self::ExternalPin
         } else if csr.oblrstf().bit_is_set() {
             Self::OptionalByteLoader
         } else if csr.fwrstf().bit_is_set() {

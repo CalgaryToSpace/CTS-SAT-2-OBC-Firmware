@@ -47,7 +47,10 @@ fn entry_point() -> ! {
 
     let cortex_peripherals = cortex_m::Peripherals::take().unwrap();
     let peripheral = stm32_hal::stm32::Peripherals::take().unwrap();
+
+    // Read and clear reset cause flags
     let reset_cause = reset::ResetCause::from_csr(peripheral.RCC.csr.read());
+    peripheral.RCC.csr.modify(|_, w| w.rmvf().set_bit());
     
     // --- Clock setup ---
     critical_section(|cs| {
