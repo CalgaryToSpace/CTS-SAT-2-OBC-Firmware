@@ -109,6 +109,7 @@ pub fn uptime_ms() -> u64 {
 }
 
 // Returns UNIX timestamp
+// * IMPORTANT: this function calculates based on local time, not global UTC time. If this needs to be changed, please let me know
 pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     
     // Return Error if initiation failed
@@ -154,22 +155,25 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     // and Jan/Feb as the 13th/14th month of the previous year
     // Makes it easier to account for leap years
     let (y, m) = if month <= 2 {
-        (year - 1, month + 12)
+        (year - 1, month + 9)
     } else {
-        (year, month)
+        (year, month - 3)
     };
     
-    // Calculate total number of days that have passed since year 0
-    let total_days = (365 * y) + (y / 4) - (y / 100) + (y / 400) + ((153 * (m + 1)) / 5) + day;
+    // Calculate total number of days that have passed since year 0. Also accounts for leap years
+    let total_days = (365 * y) + (y / 4) - (y / 100) + (y / 400) + (((153 * m) + 2) / 5) + day;
 
     // Calculate total days that have passed since UNIX Epoch Time started on Jan 1 1970
-    let days_since_epoch = total_days - 719468;
+    let days_since_epoch = total_days - 719469;
 
     // Get total seconds since epoch time
     let seconds: u64 = (days_since_epoch as u64 * 86400) + (hour as u64 * 3600) + (minute as u64 * 60);
 
-    // Get total milliseconds
-    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64);
+    // Get total milliseconds. Add 21600000 for local time
+    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64) + 21600000;
 
     Ok(unix_time_ms)
 }
+
+// Note: This is a valid TIMEA Log (for testing get_timestamp()):
+// #TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,9,29,19,03,45000,VALID*1100ad64
