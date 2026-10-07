@@ -3,6 +3,7 @@ use crate::error::ParsedTelecommandErr;
 use core::ops::Range;
 use serde::Serialize;
 
+#[derive(Serialize)]
 pub enum ReadinessLevel {
     Operation,
 
@@ -42,16 +43,20 @@ pub struct Parameter {
     pub constraints: Option<Range<u64>>,
 }
 
+#[derive(Serialize)]
 pub struct TelecommandDefinition {
     pub name: &'static str,
 
     pub num_parameters: u8,
 
+    #[serde(skip_serializing)] // temporary - will serialize in the next commit
     pub parameter_list: &'static [Parameter],
 
     pub readiness: ReadinessLevel,
 
+    #[serde(skip_serializing)]
     pub exec: fn(&str) -> Result<(), ExecuteCommandErr>,
 
+    #[serde(skip_serializing)]
     pub validate: fn(&str) -> Result<(), ParsedTelecommandErr>,
 }

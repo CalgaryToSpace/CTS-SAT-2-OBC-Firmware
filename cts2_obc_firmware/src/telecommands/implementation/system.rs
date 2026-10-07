@@ -1,5 +1,7 @@
 use core::fmt::Write;
+use serde_json_core::to_string;
 
+use super::super::exec::registry::TELECOMMAND_DEFINITIONS;
 use crate::error::ExecuteCommandErr;
 use crate::timekeeping::timestamp_ms;
 use crate::timekeeping::uptime_ms;
@@ -78,6 +80,19 @@ pub fn get_unix_time_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
             send_umbilical_uart(b"ERR: Unix time not synchronized\r\n");
         }
     }
+    Ok(())
+}
 
+pub fn get_all_telecommands_jsonl(_args: &str) -> Result<(), ExecuteCommandErr> {
+    // Arbitrary buffer size for testing, will need to define a larger buffer if telecommand registry becomes longer
+    let mut buffer = serde_json_core::heapless::String::<1024>::new();
+
+    for telecommand in TELECOMMAND_DEFINITIONS.iter() {
+        let json_string: serde_json_core::heapless::String<128> =
+            to_string(telecommand).map_err(ExecuteCommandErr::from)?;
+        let _ = write!(buffer, "{}\r\n", json_string);
+    }
+
+    send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
