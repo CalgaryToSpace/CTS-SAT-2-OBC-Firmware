@@ -1,3 +1,4 @@
+use serde_json_core::ser;
 use thiserror::Error;
 
 pub type IndexMissing = u8;
@@ -38,6 +39,12 @@ pub enum ConfigError {
 
 #[derive(Debug, Error)]
 pub enum ExecuteCommandErr {
+    #[error("Failed to serialize command response: {0}")]
+    ResponseSerializationError(#[from] ser::Error),
+
+    #[error("Command response exceeded its buffer capacity")]
+    ResponseFormatError(#[from] core::fmt::Error),
+
     #[error("Config operation error: {0}")]
     ConfigError(#[from] ConfigError),
 }

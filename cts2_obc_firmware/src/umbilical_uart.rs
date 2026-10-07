@@ -85,8 +85,12 @@ pub fn process_umbilical_commands() {
                     let trimmed = cmd_str.trim_end();
                     rprintln!("CMD: {}", trimmed);
                     match dispatch_command(trimmed) {
-                        Ok(_) => rprintln!("Command executed successfully"),
-                        Err(_) => rprintln!("Command execution failed"),
+                        Ok(_) => {
+                            rprintln!("Command executed successfully");
+                        }
+                        Err(_) => {
+                            rprintln!("Command execution failed");
+                        }
                     }
                 }
                 idx = 0;
