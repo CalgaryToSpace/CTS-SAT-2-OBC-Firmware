@@ -89,6 +89,18 @@ pub enum ConfigValue {
     U8(u8),
 }
 
+impl ConfigValue {
+    pub fn type_str(&self) -> &'static str {
+        match self {
+            ConfigValue::U32(_) => "u32",
+            ConfigValue::Bool(_) => "bool",
+            ConfigValue::F32(_) => "f32",
+            ConfigValue::I32(_) => "i32",
+            ConfigValue::U8(_) => "u8",
+        }
+    }
+}
+
 impl FromStr for ConfigValue {
     type Err = ConfigError;
 

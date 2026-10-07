@@ -71,3 +71,36 @@ pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
+
+// Currently we're setting the clock (i.e., it's an artifical clock)
+// And not a UNIX timestamp
+// Issue #47 should most likely fixed this problem
+pub fn set_unix_time_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
+    let timestamp = args
+        .parse::<u64>()
+        .map_err(|_| ConfigError::ConfigParseValueTypeError)?;
+
+    crate::timekeeping::set_unix_time_ms(timestamp);
+
+    send_umbilical_uart(b"Unix time synchronized\r\n");
+
+    Ok(())
+}
+
+pub fn get_unix_time_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
+    match crate::timekeeping::unix_time_ms() {
+        Some(timestamp) => {
+            let mut buffer = heapless::String::<64>::new();
+
+            let _ = write!(buffer, "Unix time: {} ms\r\n", timestamp);
+
+            send_umbilical_uart(buffer.as_bytes());
+        }
+
+        None => {
+            send_umbilical_uart(b"ERR: Unix time not synchronized\r\n");
+        }
+    }
+
+    Ok(())
+}
