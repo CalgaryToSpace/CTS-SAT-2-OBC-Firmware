@@ -1,6 +1,8 @@
 use crate::error::ExecuteCommandErr;
 use crate::error::ParsedTelecommandErr;
+use serde::Serialize;
 
+#[derive(Serialize)]
 pub enum ReadinessLevel {
     Operation,
 
@@ -13,6 +15,7 @@ pub enum ReadinessLevel {
     HighRiskUnsafe,
 }
 
+#[derive(Serialize)]
 pub struct TelecommandDefinition {
     pub name: &'static str,
 
@@ -20,7 +23,9 @@ pub struct TelecommandDefinition {
 
     pub readiness: ReadinessLevel,
 
+    #[serde(skip_serializing)]
     pub exec: fn(&str) -> Result<(), ExecuteCommandErr>,
 
+    #[serde(skip_serializing)]
     pub validate: fn(&str) -> Result<(), ParsedTelecommandErr>,
 }

@@ -67,6 +67,13 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
+    TelecommandDefinition {
+        name: "get_all_telecommands_jsonl",
+        exec: get_all_telecommands_jsonl,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::no_args,
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {
