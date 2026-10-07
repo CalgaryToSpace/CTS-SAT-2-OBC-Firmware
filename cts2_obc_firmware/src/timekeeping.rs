@@ -177,3 +177,95 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
 
 // Note: This is a valid TIMEA Log (for testing get_timestamp()):
 // #TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,9,29,19,03,45000,VALID*1100ad64
+
+// Various tests for get_timestamp()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Testing to make sure the time returned is accurate to the actual UNIX time
+    #[test]
+    fn timestamp_ms_accurate_UNIX() {
+
+        // This is October 3, 2026, exactly 16:36:45 (0 milliseconds). NOTE: treat this as UTC time, not local
+        let control_time: u64 = 1791045405000;
+
+        let timea_input_log: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,10,3,16,36,45000,VALID*1100ad64";
+
+        let return_value: u64 = timestamp_ms(timea_input_log);
+
+        assert_eq!(return_value, control_time);
+    }
+
+    // Test to make sure it handles INVALID UTC status correctly
+    #[test]
+    fn timestamp_error_test_utc_status() {
+        // UTC Status set to 'INVALID'
+        let invalid_timea: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,10,3,16,36,45000,INVALID*1100ad64";
+
+        let return_value = timestamp_ms(invalid_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::InvalidUTCStatus)));
+    }
+
+    // Test to make sure it doesn't crash when there are missing tokens
+    #[test]
+    fn timestamp_error_test_invalid_length_less_than() {
+        // Missing a token
+        let invalid_timea: &str = "#TIMEA,USB1,0,50.5,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,10,3,16,36,45000,VALID*1100ad64";
+
+        let return_value = timestamp_ms(invalid_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::InvalidTIMEALength)));
+    }
+
+    // Test to make sure it doesn't crash when there are excessive/junk tokens
+    #[test]
+    fn timestamp_error_test_invalid_length_greater_than() {
+        // Missing a token
+        let invalid_timea: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,5462452,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,10,3,16,36,45000,VALID*1100ad64;Sponges";
+
+        let return_value = timestamp_ms(invalid_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::InvalidTIMEALength)));
+    }
+
+    // Test with junk input that doesn't match the proper format at all
+    fn timestamp_error_test_invalid_length_bad_format() {
+        // Missing a token
+        let invalid_timea: &str = "I am the Banana Man! I'm the Banana Man! I'm the Banana Man! Selling... bananas!";
+
+        let return_value = timestamp_ms(invalid_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::InvalidTIMEALength)));
+    }
+
+    // Test parsing error handling, ensure faulty int tokens don't cause crashes
+    #[test]
+    fn timestamp_error_test_parse_error() {
+        // Some time fields have errors in them, which should cause a parse int error
+        let invalid_timea: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,20p26,10,3,16=,36,45000,INVALID*1100ad64";
+
+        let return_value = timestamp_ms(invalid_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::ParseIntError)));
+    }
+
+    // Test Init failed error
+    #[test]
+    fn timestamp_error_test_init_failed() {
+        let valid_timea: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,10,3,16,36,45000,VALID*1100ad64";
+
+        // Store proper state of INIT_DONE
+        let original_state = INIT_DONE.load(Ordering::Acquire);
+
+        // Temporarily change INIT_DONE to false for testing
+        INIT_DONE.store(false, Ordering::Release);
+
+        let return_value = timestamp_ms(valid_timea);
+        assert!(matches!(return_value, Err(TimestampError::InitFailed)));
+
+        // Restore original state after test complete
+        INIT_DONE.store(original_state, Ordering::Release);
+    }
+}
