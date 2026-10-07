@@ -1,7 +1,5 @@
-use crate::telecommand_implementation::{
-    demo_commands::run_hello_world_telecommand, get_config_variable, get_sys_uptime_ms_telecommand,
-    get_unix_time_telecommand, set_config_variable, set_unix_time_telecommand,
-};
+use crate::telecommand_implementation::demo_commands::*;
+use crate::telecommand_implementation::*;
 use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
@@ -53,6 +51,20 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         exec: get_unix_time_telecommand,
         num_parameters: 0,
         readiness: ReadinessLevel::GroundUsage,
+        validate: validators::no_args,
+    },
+    TelecommandDefinition {
+        name: "get_all_config_variables_jsonl",
+        exec: get_all_config_variables_jsonl,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::no_args,
+    },
+    TelecommandDefinition {
+        name: "get_obc_info",
+        exec: get_obc_info_telecommand,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
 ];
