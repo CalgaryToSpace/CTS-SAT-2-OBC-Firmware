@@ -198,11 +198,7 @@ fn claim_timestamp(timestamp: u64) -> bool {
     critical_section(|cs| {
         let mut history = TIMESTAMP_HISTORY.borrow(cs).borrow_mut();
 
-        if history
-            .timestamps
-            .iter()
-            .any(|&stored| stored == Some(timestamp))
-        {
+        if history.timestamps.contains(&Some(timestamp)) {
             return false;
         }
 
@@ -246,12 +242,12 @@ fn dispatch_command(cmd_str: &str) -> Result<DispatchOutcome, DispatchCommandErr
     }
 
     // Check whether the command has already been received.
-    if let Some(timestamp) = cmd.ts_sent {
-        if !claim_timestamp(timestamp) {
-            send_umbilical_uart(b"ACK: Duplicate command ignored\r\n");
+    if let Some(timestamp) = cmd.ts_sent
+        && !claim_timestamp(timestamp)
+    {
+        send_umbilical_uart(b"ACK: Duplicate command ignored\r\n");
 
-            return Ok(DispatchOutcome::Duplicate);
-        }
+        return Ok(DispatchOutcome::Duplicate);
     }
 
     // Execute the registered command.
