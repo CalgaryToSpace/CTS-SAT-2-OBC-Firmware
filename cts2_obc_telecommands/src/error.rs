@@ -40,4 +40,7 @@ pub enum ConfigError {
 pub enum ExecuteCommandErr {
     #[error("Config operation error: {0}")]
     ConfigError(#[from] ConfigError),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(#[from] serde_json_core::ser::Error),
 }

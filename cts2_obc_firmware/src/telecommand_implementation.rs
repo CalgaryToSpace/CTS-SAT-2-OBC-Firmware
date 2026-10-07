@@ -1,7 +1,9 @@
 use core::fmt::Write;
 use core::str::FromStr;
+use serde_json_core::to_string;
 
 use crate::error::ExecuteCommandErr;
+use crate::telecommand_registry::TELECOMMAND_DEFINITIONS;
 use crate::timekeeping::uptime_ms;
 use crate::umbilical_uart::send_umbilical_uart;
 use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
@@ -57,6 +59,20 @@ pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     let _ = write!(buffer, "Firmware Version: {}\r\n", firmware_version);
     let _ = write!(buffer, "Build Timestamp (UNIX): {}\r\n", build_timestamp);
     let _ = write!(buffer, "Commit Hash: {}\r\n", commit_hash);
+
+    send_umbilical_uart(buffer.as_bytes());
+    Ok(())
+}
+
+pub fn get_telecommand_list_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
+    // Arbitrary buffer size for testing, will need to define a larger buffer if telecommand registry becomes longer
+    let mut buffer = serde_json_core::heapless::String::<1024>::new();
+
+    for telecommand in TELECOMMAND_DEFINITIONS.iter() {
+        let json_string: serde_json_core::heapless::String<128> =
+            to_string(telecommand).map_err(ExecuteCommandErr::from)?;
+        let _ = write!(buffer, "{}\r\n", json_string);
+    }
 
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
