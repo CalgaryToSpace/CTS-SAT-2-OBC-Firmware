@@ -1,7 +1,5 @@
-use core::str::FromStr;
-
-use crate::config::ConfigVariableName;
 use crate::error::ParsedTelecommandErr;
+use crate::get_config_store;
 
 // Commands that do not accept arguments.
 pub fn no_args(args: &str) -> Result<(), ParsedTelecommandErr> {
@@ -14,7 +12,9 @@ pub fn no_args(args: &str) -> Result<(), ParsedTelecommandErr> {
 
 // Validate get_config.
 pub fn get_config(args: &str) -> Result<(), ParsedTelecommandErr> {
-    ConfigVariableName::from_str(args)
+    let config_store = get_config_store();
+    config_store
+        .get(args)
         .map_err(|_| ParsedTelecommandErr::InvalidArgumentValue(0))?;
 
     Ok(())
@@ -25,16 +25,20 @@ pub fn set_config(args: &str) -> Result<(), ParsedTelecommandErr> {
     let (name, value) = args
         .split_once(',')
         .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+    let config_store = get_config_store();
 
     // Argument 0: recognized configuration variable.
-    let config_name = ConfigVariableName::from_str(name)
+    let config_name = config_store
+        .get(name)
         .map_err(|_| ParsedTelecommandErr::InvalidArgumentValue(0))?;
 
     // Both currently supported configuration variables use u32.
-    let expected_type = match config_name {
-        ConfigVariableName::HeartbeatMs => "u32",
-        ConfigVariableName::ConfigDemoVariable1 => "u32",
-    };
+    // let expected_type = match config_name {
+    //     ConfigVariableName::HeartbeatMs => "u32",
+    //     ConfigVariableName::ConfigDemoVariable1 => "u32",
+    // };
+
+    let expected_type = config_name.type_str();
 
     // Argument 1: require the correct type and parentheses.
     let (actual_type, rest) = value
