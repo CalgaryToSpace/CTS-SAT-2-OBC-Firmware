@@ -7,7 +7,7 @@
 extern crate std;
 
 pub mod config;
-use config::ConfigStore;
+use config::{CONFIG_STORE, ConfigStore};
 
 pub mod error;
 
@@ -18,8 +18,7 @@ pub use parser::{Telecommand, parse_telecommand};
 
 mod shared;
 
-// global static singleton for configuration
-static CONFIG_STORE: ConfigStore = ConfigStore::new();
+pub mod validators;
 
 // get reference to the global configuration store
 pub fn get_config_store() -> &'static ConfigStore {
@@ -29,18 +28,13 @@ pub fn get_config_store() -> &'static ConfigStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ConfigValue, ConfigVariableName};
+    use crate::config::{ConfigValue, HEARTBEAT_MS};
 
     #[test]
     fn test_global_config_store() {
         let store = get_config_store();
 
-        store
-            .set(ConfigVariableName::HeartbeatMs, ConfigValue::U32(500))
-            .unwrap();
-        assert_eq!(
-            store.get(ConfigVariableName::HeartbeatMs),
-            ConfigValue::U32(500)
-        );
+        store.set(HEARTBEAT_MS.name, ConfigValue::U32(500)).unwrap();
+        assert_eq!(store.get(HEARTBEAT_MS.name).unwrap(), ConfigValue::U32(500));
     }
 }

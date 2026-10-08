@@ -3,6 +3,7 @@ use core::fmt::Write;
 use crate::error::ExecuteCommandErr;
 use crate::timekeeping::uptime_ms;
 use crate::umbilical_uart::send_umbilical_uart;
+use cts2_obc_telecommands::error::ConfigError;
 
 pub fn get_sys_uptime_ms_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     let sys_time = uptime_ms();
@@ -25,5 +26,35 @@ pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     let _ = write!(buffer, "Commit Hash: {}\r\n", commit_hash);
 
     send_umbilical_uart(buffer.as_bytes());
+    Ok(())
+}
+
+pub fn set_unix_time_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
+    let timestamp = args
+        .parse::<u64>()
+        .map_err(|_| ConfigError::ConfigParseValueTypeError)?;
+
+    crate::timekeeping::set_unix_time_ms(timestamp);
+
+    send_umbilical_uart(b"Unix time synchronized\r\n");
+
+    Ok(())
+}
+
+pub fn get_unix_time_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
+    match crate::timekeeping::unix_time_ms() {
+        Some(timestamp) => {
+            let mut buffer = heapless::String::<64>::new();
+
+            let _ = write!(buffer, "Unix time: {} ms\r\n", timestamp);
+
+            send_umbilical_uart(buffer.as_bytes());
+        }
+
+        None => {
+            send_umbilical_uart(b"ERR: Unix time not synchronized\r\n");
+        }
+    }
+
     Ok(())
 }

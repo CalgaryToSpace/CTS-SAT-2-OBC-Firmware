@@ -2,13 +2,14 @@ use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::telecommands::exec::executor::dispatch_command;
+use crate::telecommands::exec::executor::{DispatchOutcome, dispatch_command};
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
 pub const MAX_TELECOMMAND_STR_LENGTH: usize = 256;
 
-const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH;
+// Need an extra byte to hold a complete 256-byte command
+const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH + 1;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
 static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
@@ -64,33 +65,110 @@ fn uart_pop_byte() -> Option<u8> {
     byte
 }
 
+// Examine next byte without popping it from the buffer
+fn uart_peek_byte() -> Option<u8> {
+    let tail = UART_TAIL.load(Ordering::Relaxed);
+    let head = UART_HEAD.load(Ordering::Acquire);
+
+    if tail == head {
+        None
+    } else {
+        Some(UART_RX_BUF[tail].load(Ordering::Acquire))
+    }
+}
+
 /// Process commands received over the umbilical UART, from the `UART_RX_BUF`.
 pub fn process_umbilical_commands() {
-    let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
-    let mut idx = 0;
+    loop {
+        // Ignore line endings outside commands.
+        while matches!(uart_peek_byte(), Some(b'\r' | b'\n')) {
+            uart_pop_byte();
+        }
 
-    rprintln!(
-        "Processing UART commands. HEAD={}, TAIL={}",
-        UART_HEAD.load(Ordering::Relaxed),
-        UART_TAIL.load(Ordering::Relaxed)
-    );
+        let tail = UART_TAIL.load(Ordering::Acquire);
+        let head = UART_HEAD.load(Ordering::Acquire);
 
-    while let Some(b) = uart_pop_byte() {
-        if b == b'\n' || idx >= cmd.len() {
-            if idx > 0 {
-                if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
-                    let trimmed = cmd_str.trim_end();
-                    rprintln!("CMD: {}", trimmed);
-                    match dispatch_command(trimmed) {
-                        Ok(_) => rprintln!("Command executed successfully"),
-                        Err(_) => rprintln!("Command execution failed"),
+        if tail == head {
+            return;
+        }
+
+        // Look for the '!' terminator before consuming
+        // any bytes from the circular buffer.
+        let mut pos = tail;
+        let mut complete = false;
+
+        while pos != head {
+            if UART_RX_BUF[pos].load(Ordering::Acquire) == b'!' {
+                complete = true;
+                break;
+            }
+
+            pos = (pos + 1) % UART_BUF_SIZE;
+        }
+
+        // Keep incomplete commands in the buffer.
+        if !complete {
+            // Discard data if an incomplete command
+            // has filled the entire circular buffer.
+            if (head + 1) % UART_BUF_SIZE == tail {
+                rprintln!("UART command too long; discarding");
+
+                while uart_pop_byte().is_some() {}
+            }
+
+            return;
+        }
+
+        let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
+        let mut idx = 0;
+        let mut too_long = false;
+
+        // We now know a complete command is available.
+        while let Some(b) = uart_pop_byte() {
+            if idx < cmd.len() {
+                cmd[idx] = b;
+                idx += 1;
+            } else {
+                too_long = true;
+            }
+
+            if b == b'!' {
+                break;
+            }
+        }
+
+        if too_long {
+            rprintln!("UART command exceeds maximum length");
+            continue;
+        }
+
+        // Convert the received bytes into a string.
+        match core::str::from_utf8(&cmd[..idx]) {
+            Ok(cmd_str) => {
+                rprintln!("CMD: {}", cmd_str);
+
+                match dispatch_command(cmd_str) {
+                    Ok(DispatchOutcome::Executed) => {
+                        rprintln!("Command executed successfully");
+                    }
+
+                    Ok(DispatchOutcome::Duplicate) => {
+                        rprintln!("Duplicate command ignored");
+                    }
+
+                    Ok(DispatchOutcome::DelayedNotReady) => {
+                        rprintln!("Delayed execution not available");
+                    }
+
+                    Err(_) => {
+                        rprintln!("Command execution failed");
                     }
                 }
-                idx = 0;
             }
-        } else {
-            cmd[idx] = b;
-            idx += 1;
+
+            Err(_) => {
+                rprintln!("Invalid UTF-8 received");
+            }
         }
     }
 }
