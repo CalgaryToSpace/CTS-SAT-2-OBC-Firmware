@@ -1,6 +1,5 @@
-use crate::telecommand_implementation::demo_commands::*;
-use crate::telecommand_implementation::*;
-use cts2_obc_telecommands::telecommand_definitions::{ReadinessLevel, TelecommandDefinition};
+use super::super::implementation::{config, demo, system};
+use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
 // For now, each command has an appropriate validator
@@ -13,56 +12,56 @@ use cts2_obc_telecommands::validators;
 pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
     TelecommandDefinition {
         name: "hello_world",
-        exec: run_hello_world_telecommand,
+        exec: demo::run_hello_world_telecommand,
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
     TelecommandDefinition {
         name: "get_sys_uptime",
-        exec: get_sys_uptime_ms_telecommand,
+        exec: system::get_sys_uptime_ms_telecommand,
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
     TelecommandDefinition {
         name: "get_config",
-        exec: get_config_variable,
+        exec: config::get_config_variable,
         num_parameters: 1,
         readiness: ReadinessLevel::Operation,
         validate: validators::get_config,
     },
     TelecommandDefinition {
         name: "set_config",
-        exec: set_config_variable,
+        exec: config::set_config_variable,
         num_parameters: 2,
         readiness: ReadinessLevel::Operation,
         validate: validators::set_config,
     },
     TelecommandDefinition {
         name: "set_unix_time",
-        exec: set_unix_time_telecommand,
+        exec: system::set_unix_time_telecommand,
         num_parameters: 1,
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::unix_milliseconds,
     },
     TelecommandDefinition {
         name: "get_unix_time",
-        exec: get_unix_time_telecommand,
+        exec: system::get_unix_time_telecommand,
         num_parameters: 0,
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::no_args,
     },
     TelecommandDefinition {
         name: "get_all_config_variables_jsonl",
-        exec: get_all_config_variables_jsonl,
+        exec: config::get_all_config_variables_jsonl,
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
     TelecommandDefinition {
         name: "get_obc_info",
-        exec: get_obc_info_telecommand,
+        exec: system::get_obc_info_telecommand,
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
