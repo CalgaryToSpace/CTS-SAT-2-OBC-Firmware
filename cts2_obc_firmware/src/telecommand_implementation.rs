@@ -64,16 +64,15 @@ pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     Ok(())
 }
 
-pub fn get_telecommand_list_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
-    // Arbitrary buffer size for testing, will need to define a larger buffer if telecommand registry becomes longer
-    let mut buffer = serde_json_core::heapless::String::<1024>::new();
-
+pub fn get_all_telecommands_jsonl(_args: &str) -> Result<(), ExecuteCommandErr> {
     for telecommand in TELECOMMAND_DEFINITIONS.iter() {
+        let mut buffer = serde_json_core::heapless::String::<128>::new();
+
         let json_string: serde_json_core::heapless::String<128> =
             to_string(telecommand).map_err(ExecuteCommandErr::from)?;
         let _ = write!(buffer, "{}\r\n", json_string);
+        send_umbilical_uart(buffer.as_bytes());
     }
 
-    send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
