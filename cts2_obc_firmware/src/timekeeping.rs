@@ -178,6 +178,7 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
 }
 
 // Note: This is a valid TIMEA Log (for testing get_timestamp()):
+<<<<<<< HEAD
 // #TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,9,29,19,03,45000,VALID*1100ad64
 
 // Various tests for get_timestamp()
@@ -301,3 +302,6 @@ pub fn unix_time_ms() -> Option<u64> {
             })
     })
 }
+=======
+// #TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,9,29,19,03,45000,VALID*1100ad64
+>>>>>>> c164b04 (Revert "Wrote some tests to test get_timestamps()'s error handling of all error types")
