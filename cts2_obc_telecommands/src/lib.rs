@@ -70,6 +70,10 @@ pub fn parse_telecommand<'a>(input: &'a str) -> Result<Telecommand<'a>, ParsedTe
             })?;
             if parts.next().is_some() {
                 return Err(ParsedTelecommandErr::ExceededArgumentCount);
+            }
+        }
+    }
+}
 pub struct Telecommand<'a> {
     pub def: &'static TelecommandDefinition,
     pub args: &'a str,
@@ -220,6 +224,7 @@ pub fn parse_telecommand<'a>(
 
     Err(ParsedTelecommandErr::UnknownCommand)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
