@@ -3,10 +3,13 @@ use core::str::FromStr;
 
 use crate::error::ExecuteCommandErr;
 use crate::timekeeping::uptime_ms;
+use crate::timekeeping::timestamp_ms;
 use crate::umbilical_uart::send_umbilical_uart;
 use cts2_obc_telecommands::config::ConfigValue;
 use cts2_obc_telecommands::error::ConfigError;
 use cts2_obc_telecommands::get_config_store;
+
+use cts2_obc_telecommands::TimestampArgs;
 
 pub mod demo_commands;
 
@@ -19,6 +22,24 @@ pub fn get_sys_uptime_ms_telecommand(_args: &str) -> Result<(), ExecuteCommandEr
     Ok(())
 }
 
+// TODO: Telecommand to convert system uptimes to UNIX timestamp
+pub fn get_timestamp_ms_telecommand<'a>(timea_input: TimestampArgs<'a>) -> Result<(), ExecuteCommandErr> {
+    match timestamp_ms(timea_input.timea_log) {
+        Ok(current_timestamp) => {
+            let buff = heapless::format!(64; "Current UNIX Timestamp: {} ms\r\n", current_timestamp).unwrap().into_bytes();
+
+            send_umbilical_uart(&buff);
+        }
+        Err(err) => {
+            let msg = heapless::format!(128; "Failed to get timestamp: {}\r\n", err.message()).unwrap().into_bytes();
+
+            send_umbilical_uart(&msg);
+        }
+    }
+    Ok(())
+}
+
+pub fn get_config_variable(name: ConfigVariableName) -> Result<(), ExecuteCommandErr> {
 pub fn get_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
     let name = args.trim();
     let config_store = get_config_store();

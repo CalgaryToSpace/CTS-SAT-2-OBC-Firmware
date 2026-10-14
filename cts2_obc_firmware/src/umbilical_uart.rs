@@ -233,6 +233,24 @@ fn dispatch_command(cmd_str: &str) -> Result<DispatchOutcome, DispatchCommandErr
         }
     };
 
+    match cmd {
+        Telecommand::hello_world => run_hello_world_telecommand()?,
+        Telecommand::demo_command_with_arguments(args) => {
+            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
+        }
+        Telecommand::get_sys_uptime => {
+            crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
+        }
+        Telecommand::get_config(name) => {
+            crate::telecommand_implementation::get_config_variable(name)?
+        }
+        Telecommand::set_config(name, value) => {
+            crate::telecommand_implementation::set_config_variable(name, value)?
+        }
+        Telecommand::get_timestamp(timea_string) => {
+            crate::telecommand_implementation::get_timestamp_ms_telecommand(timea_string)?
+        }
+    };
     // Reject delayed commands until scheduling is implemented.
     // An absent timestamp or timestamp 0 means immediate execution.
     if cmd.ts_exec.is_some_and(|ts| ts != 0) {
