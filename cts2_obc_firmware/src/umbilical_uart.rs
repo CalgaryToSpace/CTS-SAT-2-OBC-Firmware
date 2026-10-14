@@ -84,28 +84,6 @@ fn uart_peek_byte() -> Option<u8> {
 
 /// Process commands received over the umbilical UART, from the `UART_RX_BUF`.
 pub fn process_umbilical_commands() {
-    let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
-    let mut idx = 0;
-
-    rprintln!(
-        "Processing UART commands. HEAD={}, TAIL={}",
-        UART_HEAD.load(Ordering::Relaxed),
-        UART_TAIL.load(Ordering::Relaxed)
-    );
-
-    while let Some(b) = uart_pop_byte() {
-        if b == b'\n' || idx >= cmd.len() {
-            if idx > 0 {
-                if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
-                    let trimmed = cmd_str.trim_end();
-                    rprintln!("CMD: {}", trimmed);
-                    match dispatch_command(trimmed) {
-                        Ok(_) => {
-                            rprintln!("Command executed successfully");
-                        }
-                        Err(_) => {
-                            rprintln!("Command execution failed");
-                        }
     loop {
         // Ignore line endings outside commands.
         while matches!(uart_peek_byte(), Some(b'\r' | b'\n')) {
