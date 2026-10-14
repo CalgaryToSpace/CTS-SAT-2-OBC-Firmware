@@ -1,3 +1,4 @@
+use serde_json_core::ser;
 use thiserror::Error;
 
 pub type IndexMissing = u8;
@@ -10,14 +11,44 @@ pub enum ParsedTelecommandErr {
     #[error("Failed to deserialize telecommand arguments")]
     DeserializationError(#[from] serde_json_core::de::Error),
 
-    #[error("Missing required argument")]
+    #[error("Missing required argument at index {0}")]
     MissingArgument(IndexMissing),
 
     #[error("Too many arguments provided")]
     ExceededArgumentCount,
 
-    #[error("Configuration error")]
+    #[error("Configuration error: {0}")]
     ConfigError(#[from] ConfigError),
+
+    #[error("Invalid Prefix")]
+    InvalidPrefix,
+
+    #[error("Missing End Marker")]
+    MissingEndMarker,
+
+    #[error("Invalid Suffix")]
+    InvalidSuffix,
+
+    #[error("Invalid Timestamp")]
+    InvalidTimestamp,
+
+    #[error("Invalid Response File name")]
+    InvalidResponseFilename,
+
+    #[error("No spaces allowed")]
+    SpacesNotAllowed,
+
+    #[error("Invalid argument type at index {0}")]
+    InvalidArgumentType(u8),
+
+    #[error("Invalid argument value at index {0}")]
+    InvalidArgumentValue(u8),
+
+    #[error("Argument out of range at index {0}")]
+    InvalidArgumentRange(u8),
+
+    #[error("Invalid telecommand structure")]
+    InvalidCommandFormat,
 }
 
 // config operation errors
@@ -34,4 +65,16 @@ pub enum ConfigError {
 
     #[error("Unknown type for configuration variable")]
     ConfigVariableUnknownType,
+}
+
+#[derive(Debug, Error)]
+pub enum ExecuteCommandErr {
+    #[error("Failed to serialize command response: {0}")]
+    ResponseSerializationError(#[from] ser::Error),
+
+    #[error("Command response exceeded its buffer capacity")]
+    ResponseFormatError(#[from] core::fmt::Error),
+
+    #[error("Config operation error: {0}")]
+    ConfigError(#[from] ConfigError),
 }

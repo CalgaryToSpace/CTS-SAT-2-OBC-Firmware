@@ -1,17 +1,19 @@
 use core::fmt::Write;
+use core::str::FromStr;
 
 use crate::error::ExecuteCommandErr;
 use crate::timekeeping::uptime_ms;
 use crate::timekeeping::timestamp_ms;
 use crate::umbilical_uart::send_umbilical_uart;
-use cts2_obc_telecommands::config::{ConfigValue, ConfigVariableName};
+use cts2_obc_telecommands::config::ConfigValue;
+use cts2_obc_telecommands::error::ConfigError;
 use cts2_obc_telecommands::get_config_store;
 
 use cts2_obc_telecommands::TimestampArgs;
 
 pub mod demo_commands;
 
-pub fn get_sys_uptime_ms_telecommand() -> Result<(), ExecuteCommandErr> {
+pub fn get_sys_uptime_ms_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
     let sys_time = uptime_ms();
     let buff = heapless::format!(32; "System Uptime: {} ms\r\n", sys_time)
         .unwrap()
@@ -38,26 +40,88 @@ pub fn get_timestamp_ms_telecommand<'a>(timea_input: TimestampArgs<'a>) -> Resul
 }
 
 pub fn get_config_variable(name: ConfigVariableName) -> Result<(), ExecuteCommandErr> {
+pub fn get_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
+    let name = args.trim();
     let config_store = get_config_store();
-    let value = config_store.get(name);
+    let value = config_store.get(name)?;
 
     let mut buffer = heapless::String::<128>::new();
-    let _ = write!(buffer, "Variable: {:?} = {:?}\r\n", name, value);
+    write!(buffer, "Variable: {} = {:?}\r\n", name, value)?;
 
     send_umbilical_uart(buffer.as_bytes());
     Ok(())
 }
 
-pub fn set_config_variable(
-    name: ConfigVariableName,
-    value: ConfigValue,
-) -> Result<(), ExecuteCommandErr> {
+pub fn set_config_variable(args: &str) -> Result<(), ExecuteCommandErr> {
+    let (name, value) = args
+        .split_once(',')
+        .ok_or(ConfigError::ConfigParseValueTypeError)?;
+    let name = name.trim();
+    let value = ConfigValue::from_str(value.trim())?;
     let config_store = get_config_store();
     config_store.set(name, value)?;
 
     let mut buffer = heapless::String::<128>::new();
-    let _ = write!(buffer, "Variable: {:?} set to {:?}\r\n", name, value);
+    write!(buffer, "Variable: {} set to {:?}\r\n", name, value)?;
 
     send_umbilical_uart(buffer.as_bytes());
+    Ok(())
+}
+
+pub fn get_all_config_variables_jsonl(_args: &str) -> Result<(), ExecuteCommandErr> {
+    for config_var in get_config_store().get_all_vars() {
+        let mut buffer = [0; 128];
+        let len = config_var.to_json(&mut buffer)?;
+        send_umbilical_uart(&buffer[..len]);
+        send_umbilical_uart(b"\r\n");
+    }
+    Ok(())
+}
+
+pub fn get_obc_info_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
+    let firmware_version = env!("CARGO_PKG_VERSION");
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+    let commit_hash = env!("COMMIT_HASH");
+
+    // May need to define a larger buffer if more info is added - git commit hash is 40 characters long
+    let mut buffer = heapless::String::<128>::new();
+    let _ = write!(buffer, "Firmware Version: {}\r\n", firmware_version);
+    let _ = write!(buffer, "Build Timestamp (UNIX): {}\r\n", build_timestamp);
+    let _ = write!(buffer, "Commit Hash: {}\r\n", commit_hash);
+
+    send_umbilical_uart(buffer.as_bytes());
+    Ok(())
+}
+
+// Currently we're setting the clock (i.e., it's an artifical clock)
+// And not a UNIX timestamp
+// Issue #47 should most likely fixed this problem
+pub fn set_unix_time_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
+    let timestamp = args
+        .parse::<u64>()
+        .map_err(|_| ConfigError::ConfigParseValueTypeError)?;
+
+    crate::timekeeping::set_unix_time_ms(timestamp);
+
+    send_umbilical_uart(b"Unix time synchronized\r\n");
+
+    Ok(())
+}
+
+pub fn get_unix_time_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
+    match crate::timekeeping::unix_time_ms() {
+        Some(timestamp) => {
+            let mut buffer = heapless::String::<64>::new();
+
+            let _ = write!(buffer, "Unix time: {} ms\r\n", timestamp);
+
+            send_umbilical_uart(buffer.as_bytes());
+        }
+
+        None => {
+            send_umbilical_uart(b"ERR: Unix time not synchronized\r\n");
+        }
+    }
+
     Ok(())
 }
