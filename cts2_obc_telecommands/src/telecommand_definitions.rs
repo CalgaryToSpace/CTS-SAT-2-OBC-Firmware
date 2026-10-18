@@ -1,4 +1,5 @@
 use crate::error::ExecuteCommandErr;
+use crate::error::ParsedTelecommandErr;
 
 pub enum ReadinessLevel {
     Operation,
@@ -20,4 +21,6 @@ pub struct TelecommandDefinition {
     pub readiness: ReadinessLevel,
 
     pub exec: fn(&str) -> Result<(), ExecuteCommandErr>,
+
+    pub validate: fn(&str) -> Result<(), ParsedTelecommandErr>,
 }

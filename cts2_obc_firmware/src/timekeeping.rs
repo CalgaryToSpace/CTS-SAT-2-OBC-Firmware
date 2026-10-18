@@ -1,4 +1,6 @@
+use core::cell::RefCell;
 use core::sync::atomic::{AtomicBool, Ordering};
+use cortex_m::interrupt::Mutex;
 use cortex_m::interrupt::free as critical_section;
 
 /// True after successful init.
@@ -86,4 +88,35 @@ pub fn uptime_ms() -> u64 {
     let cycles128 = total_cycles as u128;
     let ms = (cycles128 * 1000u128 + core_hz / 2u128) / core_hz;
     ms as u64
+}
+
+// Unix time at the moment of synchronization,
+// paired with the corresponding system uptime.
+static UNIX_CLOCK: Mutex<RefCell<Option<(u64, u64)>>> = Mutex::new(RefCell::new(None));
+
+// Synchronize the clock using a Unix timestamp in milliseconds.
+pub fn set_unix_time_ms(timestamp: u64) {
+    let current_uptime = uptime_ms();
+
+    critical_section(|cs| {
+        UNIX_CLOCK
+            .borrow(cs)
+            .replace(Some((timestamp, current_uptime)));
+    });
+}
+
+// Returns the current estimated Unix timestamp.
+// Returns None until the clock has been synchronized.
+pub fn unix_time_ms() -> Option<u64> {
+    let current_uptime = uptime_ms();
+
+    critical_section(|cs| {
+        UNIX_CLOCK
+            .borrow(cs)
+            .borrow()
+            .as_ref()
+            .map(|&(unix_start, uptime_start)| {
+                unix_start.saturating_add(current_uptime.saturating_sub(uptime_start))
+            })
+    })
 }
