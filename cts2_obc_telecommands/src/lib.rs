@@ -27,6 +27,11 @@ pub fn get_config_store() -> &'static ConfigStore {
 
 // TODO:Add more args for other telecommands as needed
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct TimestampArgs<'a> {
+    pub timea_log: &'a str,
+}
+
 pub struct Telecommand<'a> {
     pub def: &'static TelecommandDefinition,
     pub args: &'a str,
@@ -123,10 +128,14 @@ pub fn parse_telecommand<'a>(
         return Err(ParsedTelecommandErr::SpacesNotAllowed);
     }
 
+    let is_timestamp = command_name == "get_timestamp";
+
     let args = command_args_str.split(',');
 
     let count = if command_args_str.is_empty() {
         0
+    } else if is_timestamp {
+        1
     } else {
         args.clone().count()
     };
@@ -162,6 +171,7 @@ pub fn parse_telecommand<'a>(
 
     Err(ParsedTelecommandErr::UnknownCommand)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
