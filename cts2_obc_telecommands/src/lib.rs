@@ -27,6 +27,11 @@ pub fn get_config_store() -> &'static ConfigStore {
 
 // TODO:Add more args for other telecommands as needed
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct TimestampArgs<'a> {
+    pub timea_log: &'a str,
+}
+
 pub struct Telecommand<'a> {
     pub def: &'static TelecommandDefinition,
     pub args: &'a str,
