@@ -160,9 +160,9 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     let mut timea_iterator = timea_input.split([',', ';', '*']);
 
     // Store sliced strings from interator in array
-    for token_slot in tokens.iter_mut() {
-        if let Some(token) = timea_iterator.next() {
-            *token_slot = token;
+    for slot in tokens.iter_mut() {
+        if let Some(token_entry) = timea_iterator.next() {
+            *slot = token_entry;
         } else {
             // Return error if number of tokens is less than what's expected
             return Err(TimestampError::InvalidTIMEALength);
