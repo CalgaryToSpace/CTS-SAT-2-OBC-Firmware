@@ -22,6 +22,7 @@ pub enum TimestampError {
     InvalidTIMEALength,
     ParseIntError,
     InitFailed,
+    ValueOutOfRange,
 }
 
 // Specialized error messages
@@ -34,6 +35,9 @@ impl TimestampError {
             }
             TimestampError::ParseIntError => "Could not parse integer values",
             TimestampError::InitFailed => "System initialization failed",
+            TimestampError::ValueOutOfRange => {
+                "At least one value from the TIMEA log is out of range"
+            }
         }
     }
 }
@@ -153,12 +157,12 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
 
     // Initialize array for tokens from input, and initialize iterator
     let mut tokens = [""; 22];
-    let mut timea_iterator = timea_input.split(|c| c == ',' || c == ';' || c == '*');
+    let mut timea_iterator = timea_input.split([',', ';', '*']);
 
     // Store sliced strings from interator in array
-    for i in 0..tokens.len() {
+    for token_slot in tokens.iter_mut() {
         if let Some(token) = timea_iterator.next() {
-            tokens[i] = token;
+            *token_slot = token;
         } else {
             // Return error if number of tokens is less than what's expected
             return Err(TimestampError::InvalidTIMEALength);
@@ -195,6 +199,33 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     // Reject invalid UTC status
     if utc_status != "VALID" {
         return Err(TimestampError::InvalidUTCStatus);
+    }
+
+    // Check to ensure each time field is within the proper range
+    if !(1..=12).contains(&month)
+        || !(0..=23).contains(&hour)
+        || !(0..=59).contains(&minute)
+        || !(0..=60999).contains(&milliseconds)
+    {
+        return Err(TimestampError::ValueOutOfRange);
+    }
+
+    // Validate days based on the specific month (accounting for leap years)
+    let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    let max_days = match month {
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if is_leap {
+                29
+            } else {
+                28
+            }
+        }
+        _ => 31,
+    };
+
+    if day < 1 || day > max_days {
+        return Err(TimestampError::ValueOutOfRange);
     }
 
     // Embedded trick treats March as the first month of the year,
@@ -326,5 +357,15 @@ mod tests {
 
         // Restore original state after test complete
         INIT_DONE.store(original_state, Ordering::Release);
+    }
+
+    #[test]
+    fn timestamp_error_test_value_out_of_range() {
+        // Month is set to 13, beyond the proper range for months
+        let out_of_range_timea: &str = "#TIMEA,USB1,0,50.5,FINESTEERING,2209,515163.000,02000020,9924,16809;VALID,-2.501488425e-09,6.133312031e-10,-17.99999999630,2026,13,3,16,36,45000,VALID*1100ad64";
+
+        let return_value = timestamp_ms(out_of_range_timea);
+
+        assert!(matches!(return_value, Err(TimestampError::ValueOutOfRange)));
     }
 }
