@@ -10,6 +10,9 @@ A good issue should makes it easy to track work and it's progress.
 4. Verify that **all dependencies and prerequisites are already developed or available** before creating the issue. Issues should be scoped so they can be completed without relying on unfinished work or introducing unnecessary scope creep. If an issue is blocked, mark the issue as 'blocked by' in the Relationships section of a GitHub issue.
 5. Add a **subsystem label** to identify the part of the codebase the issue relates to, such as `GNSS` or `EPS`.
 
+**Note**: If you're unsure about the process and are writing your first GitHub issue, you can add the Draft Issue label on Github and get it reviewed by the leads
+
+
 ## Before Creating an Issue
 
 - [ ] The title clearly describes the task.
