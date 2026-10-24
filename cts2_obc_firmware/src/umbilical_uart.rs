@@ -227,72 +227,42 @@ enum DispatchOutcome {
 fn dispatch_command(cmd_str: &str) -> Result<DispatchOutcome, DispatchCommandErr> {
     let cmd = match parse_telecommand(cmd_str, TELECOMMAND_DEFINITIONS) {
         Ok(cmd) => cmd,
-        Err(e) => {
-            match e {
-                ParsedTelecommandErr::UnknownCommand => {
-                    send_umbilical_uart(b"ERR: unknown command\r\n");
-                }
-                ParsedTelecommandErr::DeserializationError(_) => {
-                    send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
-                }
-                ParsedTelecommandErr::MissingArgument(idx) => {
-                    let mut msg = heapless::String::<64>::new();
-                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
-                    send_umbilical_uart(msg.as_bytes());
-                }
-                ParsedTelecommandErr::ExceededArgumentCount => {
-                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
-                }
-
-                // When the errors got bigger, consider move into another function
-                ParsedTelecommandErr::ConfigError(e_conf) => {
-                    send_umbilical_uart(b"ERR: configuration error\r\n");
-                    match e_conf {
-                        ConfigError::ConfigVariableNotFound => {
-                            send_umbilical_uart(b"ERR: configuration variable not found\r\n");
-                        }
-                        ConfigError::ConfigVariableNotThisType => {
-                            send_umbilical_uart(
-                                b"ERR: configuration variable is not this type\r\n",
-                            );
-                        }
-                        ConfigError::ConfigVariableUnknownType => {
-                            send_umbilical_uart(
-                                b"ERR: unknown type for configuration variable\r\n",
-                            );
-                        }
-                        ConfigError::ConfigParseValueTypeError => {
-                            send_umbilical_uart(
-                                b"ERR: cannot parse the type with the value string\r\n",
-                            );
-                        }
-                    }
-                }
-            }
-            return Err(e.into());
+        Err(err) => {
+            send_uart_error(&err);
+            return Err(err.into());
         }
     };
 
-    match cmd {
-        Telecommand::hello_world => run_hello_world_telecommand()?,
-        Telecommand::demo_command_with_arguments(args) => {
-            crate::telecommand_implementation::demo_commands::run_demo_command_with_arguments(args)?
-        }
-        Telecommand::get_sys_uptime => {
-            crate::telecommand_implementation::get_sys_uptime_ms_telecommand()?
-        }
-        Telecommand::get_config(name) => {
-            crate::telecommand_implementation::get_config_variable(name)?
-        }
-        Telecommand::set_config(name, value) => {
-            crate::telecommand_implementation::set_config_variable(name, value)?
-        }
-        Telecommand::get_timestamp(timea_string) => {
-            crate::telecommand_implementation::get_timestamp_ms_telecommand(timea_string)?
-        }
-    };
+    // Reject delayed commands until scheduling is implemented.
+    // An absent timestamp or timestamp 0 means immediate execution.
+    if cmd.ts_exec.is_some_and(|ts| ts != 0) {
+        send_umbilical_uart(b"ERR: Delayed execution not implemented\r\n");
 
-    Ok(())
+        return Ok(DispatchOutcome::DelayedNotReady);
+    }
+
+    // Check whether the command has already been received.
+    if let Some(timestamp) = cmd.ts_sent
+        && !claim_timestamp(timestamp)
+    {
+        send_umbilical_uart(b"ACK: Duplicate command ignored\r\n");
+
+        return Ok(DispatchOutcome::Duplicate);
+    }
+
+    // Execute the registered command.
+    if let Err(err) = (cmd.def.exec)(cmd.args) {
+        send_uart_error(&err);
+        return Err(err.into());
+    }
+
+    Ok(DispatchOutcome::Executed)
+}
+
+fn send_uart_error(err: &impl core::fmt::Display) {
+    let mut msg = heapless::String::<128>::new();
+    let _ = write!(msg, "ERR: {err}\r\n");
+    send_umbilical_uart(msg.as_bytes());
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).
