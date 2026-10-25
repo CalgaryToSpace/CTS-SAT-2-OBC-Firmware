@@ -100,8 +100,8 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
     }
 
     // 5. Validate that the date/time indices (14 through 19) consist entirely of digits
-    for (i, token) in tokens[14..=19].iter().enumerate() {
-        if token.is_empty() || !token.chars().all(|c| c.is_ascii_digit()) {
+    for (i, entry) in tokens[14..=19].iter().enumerate() {
+        if entry.is_empty() || !entry.chars().all(|c| c.is_ascii_digit()) {
             return Err(ParsedTelecommandErr::InvalidArgumentRange((14 + i) as u8));
         }
     }
