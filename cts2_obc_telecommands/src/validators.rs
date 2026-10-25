@@ -85,9 +85,9 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
     let mut timea_iterator = args.split([',', ';', '*']);
 
     // 3. Extract exactly 22 tokens from the input
-    for token_slot in tokens.iter_mut() {
-        if let Some(token) = timea_iterator.next() {
-            *token_slot = token;
+    for slot in tokens.iter_mut() {
+        if let Some(entry) = timea_iterator.next() {
+            *slot = entry;
         } else {
             // Return error if number of tokens is less than what's expected
             return Err(ParsedTelecommandErr::InvalidArgumentRange(0));
