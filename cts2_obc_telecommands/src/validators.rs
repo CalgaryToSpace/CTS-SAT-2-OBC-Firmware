@@ -86,8 +86,8 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
 
     // 3. Extract exactly 22 tokens from the input
     for slot in tokens.iter_mut() {
-        if let Some(entry) = timea_iterator.next() {
-            *slot = entry;
+        if let Some(token_entry) = timea_iterator.next() {
+            *slot = token_entry;
         } else {
             // Return error if number of tokens is less than what's expected
             return Err(ParsedTelecommandErr::InvalidArgumentRange(0));
@@ -100,8 +100,8 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
     }
 
     // 5. Validate that the date/time indices (14 through 19) consist entirely of digits
-    for (i, entry) in tokens[14..=19].iter().enumerate() {
-        if entry.is_empty() || !entry.chars().all(|c| c.is_ascii_digit()) {
+    for (i, token_entry) in tokens[14..=19].iter().enumerate() {
+        if token_entry.is_empty() || !token_entry.chars().all(|c| c.is_ascii_digit()) {
             return Err(ParsedTelecommandErr::InvalidArgumentRange((14 + i) as u8));
         }
     }
