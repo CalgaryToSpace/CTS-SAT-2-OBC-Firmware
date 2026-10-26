@@ -123,10 +123,14 @@ pub fn parse_telecommand<'a>(
         return Err(ParsedTelecommandErr::SpacesNotAllowed);
     }
 
+    let is_timestamp = command_name == "get_timestamp";
+
     let args = command_args_str.split(',');
 
     let count = if command_args_str.is_empty() {
         0
+    } else if is_timestamp {
+        1
     } else {
         args.clone().count()
     };
@@ -162,6 +166,7 @@ pub fn parse_telecommand<'a>(
 
     Err(ParsedTelecommandErr::UnknownCommand)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
