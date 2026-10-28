@@ -17,6 +17,7 @@ use stm32l4xx_hal::{
 };
 
 mod error;
+mod reset;
 mod telecommands;
 mod timekeeping;
 mod umbilical_uart;
@@ -45,6 +46,10 @@ fn entry_point() -> ! {
 
     let cortex_peripherals = cortex_m::Peripherals::take().unwrap();
     let peripheral = stm32_hal::stm32::Peripherals::take().unwrap();
+
+    // Read and clear reset cause flags
+    let reset_cause = reset::ResetCause::from_csr(peripheral.RCC.csr.read());
+    peripheral.RCC.csr.modify(|_, w| w.rmvf().set_bit());
 
     // --- Clock setup ---
     critical_section(|cs| {
@@ -121,6 +126,11 @@ fn entry_point() -> ! {
     }
 
     send_umbilical_uart(b"USART2 ready. Buffered RX active.\r\n");
+
+    send_umbilical_uart(b"System reset cause: ");
+    send_umbilical_uart(reset_cause.as_str().as_bytes());
+    send_umbilical_uart(b"\r\n");
+    rprintln!("System reset cause: {}", reset_cause.as_str());
 
     // --- Main loop ---
     let mut i = 0u32;
