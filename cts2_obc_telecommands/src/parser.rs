@@ -102,8 +102,14 @@ pub fn parse_telecommand<'a>(
 
     let args = command_args_str.split(',');
 
+    // get_timestamp telecommand needs long input with commas, semicolons, and asterisks
+    // must create exception here for the command to work. Otherwise it will constantly say too many arguments
+    let is_timestamp = command_name == "get_timestamp";
+
     let count = if command_args_str.is_empty() {
         0
+    } else if is_timestamp {
+        1
     } else {
         args.clone().count()
     };
