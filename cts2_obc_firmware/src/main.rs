@@ -9,14 +9,17 @@ use cortex_m::interrupt::free as critical_section;
 use cortex_m::peripheral::NVIC;
 use rtt_target::{rprintln, rtt_init_print};
 use static_cell::StaticCell;
+use stm32l4xx_hal::gpio::gpiob;
 use stm32l4xx_hal::{
     self as stm32_hal,
     dma::CircReadDma as _,
     gpio::{Output, PushPull, gpioc::PC7},
+    i2c::I2c,
     prelude::*,
 };
 
 mod error;
+mod obc_temperature_sensor;
 mod telecommand_implementation;
 mod telecommand_registry;
 mod timekeeping;
@@ -72,6 +75,7 @@ fn entry_point() -> ! {
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
     // --- GPIO ---
+    let mut gpiob = peripheral.GPIOB.split(&mut rcc.ahb2);
     let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
     let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
     let led = gpioc
@@ -123,6 +127,23 @@ fn entry_point() -> ! {
 
     send_umbilical_uart(b"USART2 ready. Buffered RX active.\r\n");
 
+    // -- I2C --
+    // Configure I2C1
+    let mut scl = gpiob.pb6.into_alternate_open_drain::<4>(
+        &mut gpiob.moder,
+        &mut gpiob.otyper,
+        &mut gpiob.afrl,
+    );
+
+    let mut sda = gpiob.pb7.into_alternate_open_drain::<4>(
+        &mut gpiob.moder,
+        &mut gpiob.otyper,
+        &mut gpiob.afrl,
+    );
+
+    scl.internal_pull_up(&mut gpiob.pupdr, true);
+    sda.internal_pull_up(&mut gpiob.pupdr, true);
+
     // --- Main loop ---
     let mut i = 0u32;
     loop {
@@ -151,7 +172,9 @@ fn toggle_led() {
     });
 }
 
-fn timer_delay_ms(ms: u16) {
+// Turned this from fn timer_delay_ms INTO pub(crate) fn timer_delay_ms(ms: u16)
+// Because I need this function in the obc_temperature_sensor
+pub(crate) fn timer_delay_ms(ms: u16) {
     critical_section(|cs| {
         if let Some(ref mut timer) = *PERIPHERAL_DELAY_TIMER.borrow(cs).borrow_mut() {
             timer.delay_ms(ms);
