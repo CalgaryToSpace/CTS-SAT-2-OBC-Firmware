@@ -17,6 +17,7 @@ use stm32l4xx_hal::{
 };
 
 mod error;
+mod flash;
 mod reset;
 mod telecommands;
 mod timekeeping;
