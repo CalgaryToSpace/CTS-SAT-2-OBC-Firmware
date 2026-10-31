@@ -100,15 +100,19 @@ pub fn parse_telecommand<'a>(
         return Err(ParsedTelecommandErr::SpacesNotAllowed);
     }
 
-    let args = command_args_str.split(',');
+    let tcmd_def = telecommand_definitions
+        .iter()
+        .find(|d| d.name == command_name)
+        .ok_or(ParsedTelecommandErr::UnknownCommand)?;
 
     // get_timestamp telecommand needs long input with commas, semicolons, and asterisks
     // must create exception here for the command to work. Otherwise it will constantly say too many arguments
-    let is_timestamp = command_name == "get_timestamp";
+    let is_argument_literal: bool = tcmd_def.argument_is_literal;
 
+    let args = command_args_str.split(',');
     let count = if command_args_str.is_empty() {
         0
-    } else if is_timestamp {
+    } else if is_argument_literal {
         1
     } else {
         args.clone().count()
@@ -163,6 +167,7 @@ mod tests {
             readiness: ReadinessLevel::GroundUsage,
             exec: |_| panic!("Parsing must not execute commands"),
             validate: validate_sample,
+            argument_is_literal: false,
         },
         TelecommandDefinition {
             name: "sample_empty",
@@ -170,6 +175,7 @@ mod tests {
             readiness: ReadinessLevel::GroundUsage,
             exec: |_| panic!("Parsing must not execute commands"),
             validate: validators::no_args,
+            argument_is_literal: false,
         },
     ];
 
@@ -179,6 +185,7 @@ mod tests {
         readiness: ReadinessLevel::Operation,
         exec: |_| panic!("Parser must not execute commands"),
         validate: validators::set_config,
+        argument_is_literal: false,
     }];
 
     #[test]

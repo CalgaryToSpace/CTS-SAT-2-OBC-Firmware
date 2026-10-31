@@ -23,4 +23,6 @@ pub struct TelecommandDefinition {
     pub exec: fn(&str) -> Result<(), ExecuteCommandErr>,
 
     pub validate: fn(&str) -> Result<(), ParsedTelecommandErr>,
+
+    pub argument_is_literal: bool,
 }
