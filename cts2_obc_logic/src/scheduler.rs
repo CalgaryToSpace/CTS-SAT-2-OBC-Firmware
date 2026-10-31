@@ -120,13 +120,13 @@ impl Scheduler {
 
         // Scheduled tasks
         if task.tsexec != EXECUTE_IMMEDIATELY {
-            for i in 0..DELAYED_TASKS {
-                if self.delayed_tasks[i].priority == Priority::None {
-                    self.delayed_tasks[i] = task;
-                    return Ok(());
-                }
-            }
-            return Err(SchedulerError::QueueFull);
+            let slot = self
+                .delayed_tasks
+                .iter_mut()
+                .find(|task| task.priority == Priority::None)
+                .ok_or(SchedulerError::QueueFull)?;
+            *slot = task;
+            return Ok(());
         }
 
         // Immediate tasks
@@ -136,21 +136,24 @@ impl Scheduler {
     pub fn run_next_task(
         &mut self,
     ) -> Result<(Task, Result<(), ExecuteCommandErr>), SchedulerError> {
-        let task = if !self.is_empty(Priority::High) {
-            self.high_level_tasks.tasks[self.high_level_tasks.head].clone()
-        } else if !self.is_empty(Priority::Medium) {
-            self.medium_level_tasks.tasks[self.medium_level_tasks.head].clone()
-        } else if !self.is_empty(Priority::Low) {
-            self.low_level_tasks.tasks[self.low_level_tasks.head].clone()
-        } else if !self.is_empty(Priority::Debug) {
-            self.debug_level_tasks.tasks[self.debug_level_tasks.head].clone()
-        } else {
-            return Err(SchedulerError::NoTasksAvailable);
-        };
+        const PRIORITIES: [Priority; 4] = [
+            Priority::High,
+            Priority::Medium,
+            Priority::Low,
+            Priority::Debug,
+        ];
 
-        let result = (task.execute)(task.args.as_str());
-        self.remove_head_task(task.priority)?;
-        Ok((task, result))
+        for priority in PRIORITIES {
+            let queue = self.queue_mut(priority)?;
+            if queue.count == 0 {
+                continue;
+            }
+            let task = queue.tasks[queue.head].clone();
+            let result = (task.execute)(task.args.as_str());
+            self.remove_head_task(priority)?;
+            return Ok((task, result));
+        }
+        Err(SchedulerError::NoTasksAvailable)
     }
 
     fn remove_head_task(&mut self, priority: Priority) -> Result<(), SchedulerError> {
@@ -159,16 +162,6 @@ impl Scheduler {
         queue.head = (queue.head + 1) % TOTAL_TASKS;
         queue.count -= 1;
         Ok(())
-    }
-
-    pub fn is_empty(&self, priority: Priority) -> bool {
-        match priority {
-            Priority::High => self.high_level_tasks.count == 0,
-            Priority::Medium => self.medium_level_tasks.count == 0,
-            Priority::Low => self.low_level_tasks.count == 0,
-            Priority::Debug => self.debug_level_tasks.count == 0,
-            Priority::None => true,
-        }
     }
 }
 

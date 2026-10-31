@@ -34,11 +34,11 @@ mod tests {
 
     #[test]
     fn test_scheduler_creation() {
-        let sched = scheduler::Scheduler::new();
-        assert!(sched.is_empty(scheduler::Priority::High));
-        assert!(sched.is_empty(scheduler::Priority::Medium));
-        assert!(sched.is_empty(scheduler::Priority::Low));
-        assert!(sched.is_empty(scheduler::Priority::Debug));
+        let mut sched = scheduler::Scheduler::new();
+        assert!(matches!(
+            sched.run_next_task(),
+            Err(error::SchedulerError::NoTasksAvailable)
+        ));
     }
 
     #[test]
