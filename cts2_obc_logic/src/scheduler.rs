@@ -1,8 +1,5 @@
 use crate::error::SchedulerError;
-use cts2_obc_telecommands::{
-    EXECUTE_IMMEDIATELY, UnixTimestampMs,
-    config::{ConfigValue, ConfigVariableName},
-};
+use cts2_obc_telecommands::{EXECUTE_IMMEDIATELY, UnixTimestampMs, error::ExecuteCommandErr};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
@@ -13,26 +10,16 @@ pub enum Priority {
     None = 0,
 }
 
-const TOTAL_TASKS: usize = 256;
-const DELAYED_TASKS: usize = 256;
+const TOTAL_TASKS: usize = 16;
+const DELAYED_TASKS: usize = 16;
 
-#[derive(Debug, Copy, Clone)]
-pub enum TaskArgs {
-    None,
-    Message(&'static str),
-    TwoU32(u32, u32),
+pub type TaskFn = fn(&str) -> Result<(), ExecuteCommandErr>;
 
-    GetConfig(ConfigVariableName),
-    SetConfig(ConfigVariableName, ConfigValue),
-}
-
-pub type TaskFn = fn(TaskArgs);
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Task {
     pub name: &'static str,
     pub execute: TaskFn,
-    pub args: TaskArgs,
+    pub args: heapless::String<256>,
     pub priority: Priority,
     pub tsexec: UnixTimestampMs,
 }
@@ -41,7 +28,7 @@ impl Task {
         Task {
             name: "",
             execute: none,
-            args: TaskArgs::None,
+            args: heapless::String::new(),
             priority: Priority::None,
             tsexec: EXECUTE_IMMEDIATELY,
         }
@@ -79,7 +66,7 @@ impl Scheduler {
         const DEFAULT_TASK: Task = Task {
             name: "",
             execute: none,
-            args: TaskArgs::None,
+            args: heapless::String::new(),
             priority: Priority::None,
             tsexec: EXECUTE_IMMEDIATELY,
         };
@@ -108,7 +95,7 @@ impl Scheduler {
         const DEFAULT_TASK: Task = Task {
             name: "",
             execute: none,
-            args: TaskArgs::None,
+            args: heapless::String::new(),
             priority: Priority::None,
             tsexec: EXECUTE_IMMEDIATELY,
         };
@@ -135,10 +122,10 @@ impl Scheduler {
 
     pub fn release_task(&mut self, unix_ms_ts: UnixTimestampMs) {
         for i in 0..DELAYED_TASKS {
-            let task = self.delayed_tasks[i];
+            let task = &self.delayed_tasks[i];
             if task.priority != Priority::None
                 && task.tsexec <= unix_ms_ts
-                && self.add_ready_task(task).is_ok()
+                && self.add_ready_task(task.clone()).is_ok()
             {
                 self.delayed_tasks[i] = Task::new();
             }
@@ -204,29 +191,24 @@ impl Scheduler {
         self.add_ready_task(task)
     }
 
-    pub fn run_next_task(&mut self) -> Result<Task, SchedulerError> {
-        let task;
-        if !self.is_empty(Priority::High) {
-            task = self.high_level_tasks[self.head_high];
-            (task.execute)(task.args);
-            self.remove_head_task(Priority::High)?;
+    pub fn run_next_task(
+        &mut self,
+    ) -> Result<(Task, Result<(), ExecuteCommandErr>), SchedulerError> {
+        let task = if !self.is_empty(Priority::High) {
+            self.high_level_tasks[self.head_high].clone()
         } else if !self.is_empty(Priority::Medium) {
-            task = self.medium_level_tasks[self.head_medium];
-            (task.execute)(task.args);
-            self.remove_head_task(Priority::Medium)?;
+            self.medium_level_tasks[self.head_medium].clone()
         } else if !self.is_empty(Priority::Low) {
-            task = self.low_level_tasks[self.head_low];
-            (task.execute)(task.args);
-            self.remove_head_task(Priority::Low)?;
+            self.low_level_tasks[self.head_low].clone()
         } else if !self.is_empty(Priority::Debug) {
-            task = self.debug_level_tasks[self.head_debug];
-            (task.execute)(task.args);
-            self.remove_head_task(Priority::Debug)?;
+            self.debug_level_tasks[self.head_debug].clone()
         } else {
             return Err(SchedulerError::NoTasksAvailable);
-        }
+        };
 
-        Ok(task)
+        let result = (task.execute)(task.args.as_str());
+        self.remove_head_task(task.priority)?;
+        Ok((task, result))
     }
 
     fn remove_head_task(&mut self, priority: Priority) -> Result<(), SchedulerError> {
@@ -273,4 +255,6 @@ impl Default for Scheduler {
     }
 }
 
-fn none(_: TaskArgs) {}
+fn none(_: &str) -> Result<(), ExecuteCommandErr> {
+    Ok(())
+}

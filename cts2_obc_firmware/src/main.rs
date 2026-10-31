@@ -18,6 +18,7 @@ use stm32l4xx_hal::{
 
 mod error;
 mod telecommand_implementation;
+mod telecommand_registry;
 mod timekeeping;
 mod umbilical_uart;
 
@@ -146,12 +147,15 @@ fn entry_point() -> ! {
         critical_section(|cs| {
             let mut scheduler = crate::scheduler_instance::SCHEDULER.borrow(cs).borrow_mut();
 
-            // TODO: Need a time synchronization to know the current time
-            // in unix epoch milliseconds. Now it just release all scheduled
-            scheduler.release_task(u64::MAX);
+            // TODO: Not sure to use this unsync unix time ms or GNSS time
+            if let Some(now) = timekeeping::unix_time_ms() {
+                scheduler.release_task(now);
+            }
 
-            while scheduler.run_next_task().is_ok() {
-                // Run all available tasks
+            while let Ok((_task, result)) = scheduler.run_next_task() {
+                if let Err(err) = result {
+                    umbilical_uart::send_uart_error(&err);
+                }
             }
         });
 

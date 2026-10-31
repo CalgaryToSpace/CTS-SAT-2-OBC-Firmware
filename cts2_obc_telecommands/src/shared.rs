@@ -1,51 +1,49 @@
-use crate::{EXECUTE_IMMEDIATELY, UnixTimestampMs, error::ParsedTelecommandErr};
+pub fn extract_function_and_args(input: &str) -> (&str, &str) {
+    //
+    let command_name = input.trim().split('(').next().unwrap_or("");
+    let command_args_str = input
+        .trim()
+        .strip_prefix(command_name)
+        .and_then(|s| s.strip_prefix('('))
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or("")
+        .trim();
 
-pub struct ParsedTelecommand<'a> {
-    pub command_name: &'a str,
-    pub command_args_str: &'a str,
-    pub tsexec_parsed: UnixTimestampMs,
+    (command_name, command_args_str)
 }
 
-// TODO: Make a more robust parser instead of simple string manipulation
-pub fn extract_function_args_tags<'a>(
-    input: &'a str,
-) -> Result<ParsedTelecommand<'a>, ParsedTelecommandErr> {
-    let command_name = input.trim().split('(').next().unwrap_or("");
-    if command_name.is_empty() {
-        return Err(ParsedTelecommandErr::EmptyTelecommandString);
-    }
-
-    // Parse arguments
-    // Get everything in between the first '(' and the last ')'
-    let command_args_str = match (input.find('('), input.rfind(')')) {
-        (Some(start), Some(end)) if start < end => &input[start + 1..end],
-        _ => {
-            return Err(ParsedTelecommandErr::UnbalancedParentheses);
-        }
+pub fn has_valid_command_structure(input: &str) -> bool {
+    let Some(open) = input.find('(') else {
+        return false;
     };
 
-    // Parse tags
-    let mut tsexec_parsed: UnixTimestampMs = EXECUTE_IMMEDIATELY;
-    for (i, _) in input.match_indices('@') {
-        let left = &input[i + 1..];
-        if let Some(end) = left.find('=') {
-            let tag_name = &left[..end];
-            let after_equal = &left[end + 1..];
-            if tag_name == "tsexec" {
-                let end_idx = after_equal
-                    .find(|c: char| !c.is_ascii_digit())
-                    .unwrap_or(after_equal.len());
-                let tsexec_str = &after_equal[..end_idx];
-                tsexec_parsed = tsexec_str
-                    .parse::<UnixTimestampMs>()
-                    .map_err(|_| ParsedTelecommandErr::ParseStrValueError)?;
+    // A command must have a name and end with ')'.
+    if open == 0 || !input.ends_with(')') {
+        return false;
+    }
+
+    let mut depth = 0usize;
+
+    for (index, byte) in input.bytes().enumerate().skip(open) {
+        match byte {
+            b'(' => depth += 1,
+
+            b')' => {
+                if depth == 0 {
+                    return false;
+                }
+
+                depth -= 1;
+
+                // The outer closing parenthesis must be last.
+                if depth == 0 && index != input.len() - 1 {
+                    return false;
+                }
             }
+
+            _ => {}
         }
     }
 
-    Ok(ParsedTelecommand {
-        command_name,
-        command_args_str,
-        tsexec_parsed,
-    })
+    depth == 0
 }

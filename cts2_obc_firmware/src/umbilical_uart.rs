@@ -1,21 +1,18 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_logic::error::SchedulerError;
-use cts2_obc_telecommands::error::{ConfigError, ParsedTelecommandErr};
-use cts2_obc_telecommands::{Telecommand, parse_telecommand};
+use cts2_obc_telecommands::parse_telecommand;
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
 use crate::error::DispatchCommandErr;
-use crate::scheduler_instance::SCHEDULER;
-use cortex_m::interrupt::free as critical_section;
-use cts2_obc_logic::scheduler::{Priority, Task, TaskArgs};
+use crate::telecommand_registry::{DispatchOutcome, TELECOMMAND_DEFINITIONS, enqueue};
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
 pub const MAX_TELECOMMAND_STR_LENGTH: usize = 256;
 
-const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH;
+// Need an extra byte to hold a complete 256-byte command
+const UART_BUF_SIZE: usize = MAX_TELECOMMAND_STR_LENGTH + 1;
 static UART_RX_BUF: [AtomicU8; UART_BUF_SIZE] = [const { AtomicU8::new(0) }; UART_BUF_SIZE];
 static UART_HEAD: AtomicUsize = AtomicUsize::new(0);
 static UART_TAIL: AtomicUsize = AtomicUsize::new(0);
@@ -77,181 +74,136 @@ fn uart_pop_byte() -> Option<u8> {
     byte
 }
 
+// Examine next byte without popping it from the buffer
+fn uart_peek_byte() -> Option<u8> {
+    let tail = UART_TAIL.load(Ordering::Relaxed);
+    let head = UART_HEAD.load(Ordering::Acquire);
+
+    if tail == head {
+        None
+    } else {
+        Some(UART_RX_BUF[tail].load(Ordering::Acquire))
+    }
+}
+
 /// Process commands received over the umbilical UART, from the `UART_RX_BUF`.
 pub fn process_umbilical_commands() {
-    let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
-    let mut idx = 0;
+    loop {
+        // Ignore line endings outside commands.
+        while matches!(uart_peek_byte(), Some(b'\r' | b'\n')) {
+            uart_pop_byte();
+        }
 
-    rprintln!(
-        "Processing UART commands. HEAD={}, TAIL={}",
-        UART_HEAD.load(Ordering::Relaxed),
-        UART_TAIL.load(Ordering::Relaxed)
-    );
+        let tail = UART_TAIL.load(Ordering::Acquire);
+        let head = UART_HEAD.load(Ordering::Acquire);
 
-    while let Some(b) = uart_pop_byte() {
-        if b == b'\n' || idx >= cmd.len() {
-            if idx > 0 {
-                if let Ok(cmd_str) = core::str::from_utf8(&cmd[..idx]) {
-                    let trimmed = cmd_str.trim_end();
-                    rprintln!("CMD: {}", trimmed);
-                    match dispatch_command(trimmed) {
-                        Ok(_) => rprintln!("Command executed successfully"),
-                        Err(e) => match e {
-                            DispatchCommandErr::Scheduler(e_sched) => {
-                                rprintln!("Scheduler error: {:?}", e_sched);
-                            }
-                            DispatchCommandErr::ParsedTelecommand(e_parse) => {
-                                rprintln!("Parsed telecommand error: {:?}", e_parse);
-                            }
-                        },
+        if tail == head {
+            return;
+        }
+
+        // Look for the '!' terminator before consuming
+        // any bytes from the circular buffer.
+        let mut pos = tail;
+        let mut complete = false;
+
+        while pos != head {
+            if UART_RX_BUF[pos].load(Ordering::Acquire) == b'!' {
+                complete = true;
+                break;
+            }
+
+            pos = (pos + 1) % UART_BUF_SIZE;
+        }
+
+        // Keep incomplete commands in the buffer.
+        if !complete {
+            // Discard data if an incomplete command
+            // has filled the entire circular buffer.
+            if (head + 1) % UART_BUF_SIZE == tail {
+                rprintln!("UART command too long; discarding");
+
+                while uart_pop_byte().is_some() {}
+            }
+
+            return;
+        }
+
+        let mut cmd = [0u8; MAX_TELECOMMAND_STR_LENGTH];
+        let mut idx = 0;
+        let mut too_long = false;
+
+        // We now know a complete command is available.
+        while let Some(b) = uart_pop_byte() {
+            if idx < cmd.len() {
+                cmd[idx] = b;
+                idx += 1;
+            } else {
+                too_long = true;
+            }
+
+            if b == b'!' {
+                break;
+            }
+        }
+
+        if too_long {
+            rprintln!("UART command exceeds maximum length");
+            continue;
+        }
+
+        // Convert the received bytes into a string.
+        match core::str::from_utf8(&cmd[..idx]) {
+            Ok(cmd_str) => {
+                rprintln!("CMD: {}", cmd_str);
+
+                match dispatch_command(cmd_str) {
+                    Ok(DispatchOutcome::Queued) => {
+                        rprintln!("Command queued successfully");
+                    }
+
+                    Ok(DispatchOutcome::Duplicate) => {
+                        rprintln!("Duplicate command ignored");
+                    }
+
+                    Err(_) => {
+                        rprintln!("Command dispatch failed");
                     }
                 }
-                idx = 0;
             }
-        } else {
-            cmd[idx] = b;
-            idx += 1;
+
+            Err(_) => {
+                rprintln!("Invalid UTF-8 received");
+            }
         }
     }
 }
 
-// TODO: Make different functions to handle each separate command.
-// TODO: Fix the () error type to be enum or string
-// TODO: Replace with meaningful telecommands.
-fn dispatch_command(cmd_str: &str) -> Result<(), DispatchCommandErr> {
-    let cmd_parsed = match parse_telecommand(cmd_str) {
+fn dispatch_command(cmd_str: &str) -> Result<DispatchOutcome, DispatchCommandErr> {
+    let cmd = match parse_telecommand(cmd_str, TELECOMMAND_DEFINITIONS) {
         Ok(cmd) => cmd,
-        Err(e) => {
-            match e {
-                ParsedTelecommandErr::UnknownCommand => {
-                    send_umbilical_uart(b"ERR: unknown command\r\n");
-                }
-                ParsedTelecommandErr::DeserializationError(_) => {
-                    send_umbilical_uart(b"ERR: failed to deserialize command arguments\r\n");
-                }
-                ParsedTelecommandErr::MissingArgument(idx) => {
-                    let mut msg = heapless::String::<64>::new();
-                    let _ = write!(msg, "ERR: missing required argument at index {}\r\n", idx);
-                    send_umbilical_uart(msg.as_bytes());
-                }
-                ParsedTelecommandErr::ExceededArgumentCount => {
-                    send_umbilical_uart(b"ERR: too many arguments provided\r\n");
-                }
-                ParsedTelecommandErr::ConfigError(e_conf) => match e_conf {
-                    ConfigError::ConfigVariableNotFound => {
-                        send_umbilical_uart(b"ERR: configuration variable not found\r\n");
-                    }
-                    ConfigError::ConfigVariableNotThisType => {
-                        send_umbilical_uart(b"ERR: configuration variable is not this type\r\n");
-                    }
-                    ConfigError::ConfigVariableUnknownType => {
-                        send_umbilical_uart(b"ERR: unknown type for configuration variable\r\n");
-                    }
-                    ConfigError::ConfigParseValueTypeError => {
-                        send_umbilical_uart(
-                            b"ERR: cannot parse the type with the value string\r\n",
-                        );
-                    }
-                },
-                ParsedTelecommandErr::UnbalancedParentheses => {
-                    send_umbilical_uart(b"ERR: unbalanced parentheses in command\r\n");
-                }
-                ParsedTelecommandErr::ParseStrValueError => {
-                    send_umbilical_uart(b"ERR: cannot parse the type with the value string\r\n");
-                }
-                ParsedTelecommandErr::EmptyTelecommandString => {
-                    send_umbilical_uart(b"ERR: empty telecommand string\r\n");
-                }
-            }
-            return Err(e.into());
+        Err(err) => {
+            send_uart_error(&err);
+            return Err(err.into());
         }
     };
 
-    let cmd = cmd_parsed.command;
-    let tsexec = cmd_parsed.tsexec;
-
-    match cmd {
-        Telecommand::hello_world => {
-            let task = Task {
-                name: "hello_world",
-                execute: crate::telecommand_implementation::telecommand_hello_world,
-                args: TaskArgs::None,
-                priority: Priority::Medium,
-                tsexec,
-            };
-            critical_section(|cs| -> Result<(), SchedulerError> {
-                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task)?;
-                Ok(())
-            })?;
+    match enqueue(cmd) {
+        Ok(DispatchOutcome::Duplicate) => {
+            send_umbilical_uart(b"ACK: Duplicate command ignored\r\n");
+            Ok(DispatchOutcome::Duplicate)
         }
-
-        Telecommand::demo_command_with_arguments(args) => {
-            critical_section(|cs| {
-                crate::telecommand_implementation::demo_commands::DEMO_ARGS
-                    .borrow(cs)
-                    .replace(Some(args));
-            });
-            let task = Task {
-                name: "demo_command",
-                execute: crate::telecommand_implementation::telecommand_demo_command_with_arguments,
-                args: TaskArgs::None,
-                priority: Priority::Medium,
-                tsexec,
-            };
-            critical_section(|cs| -> Result<(), SchedulerError> {
-                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task)?;
-                Ok(())
-            })?;
+        Ok(outcome) => Ok(outcome),
+        Err(err) => {
+            send_uart_error(&err);
+            Err(err)
         }
-        Telecommand::get_sys_uptime => {
-            let task = Task {
-                name: "get_sys_uptime",
-                execute: crate::telecommand_implementation::telecommand_get_sys_uptime,
-                args: TaskArgs::None,
-                priority: Priority::Medium,
-                tsexec,
-            };
-            critical_section(|cs| -> Result<(), SchedulerError> {
-                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task)?;
-                Ok(())
-            })?;
-        }
+    }
+}
 
-        Telecommand::get_config(name) => {
-            let task = Task {
-                name: "get_config",
-                execute: crate::telecommand_implementation::telecommand_get_config_variable,
-                args: TaskArgs::GetConfig(name),
-                priority: Priority::Medium,
-                tsexec,
-            };
-            critical_section(|cs| -> Result<(), SchedulerError> {
-                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task)?;
-                Ok(())
-            })?;
-        }
-
-        Telecommand::set_config(name, value) => {
-            let task = Task {
-                name: "set_config",
-                execute: crate::telecommand_implementation::telecommand_set_config_variable,
-                args: TaskArgs::SetConfig(name, value),
-                priority: Priority::Medium,
-                tsexec,
-            };
-            critical_section(|cs| -> Result<(), SchedulerError> {
-                let mut scheduler = SCHEDULER.borrow(cs).borrow_mut();
-                scheduler.add_task(task)?;
-                Ok(())
-            })?;
-        }
-    };
-
-    Ok(())
+pub(crate) fn send_uart_error(err: &impl core::fmt::Display) {
+    let mut msg = heapless::String::<128>::new();
+    let _ = write!(msg, "ERR: {err}\r\n");
+    send_umbilical_uart(msg.as_bytes());
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).
