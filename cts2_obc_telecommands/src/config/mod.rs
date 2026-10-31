@@ -152,6 +152,7 @@ impl ConfigStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::get_config_store;
 
     static TEST_VAR1: ConfigVariable = ConfigVariable {
         name: "test_var1",
@@ -171,5 +172,64 @@ mod tests {
         assert_eq!(vars.len(), 2);
         assert_eq!(vars[0].name, "test_var1");
         assert_eq!(vars[1].name, "test_var2");
+    }
+
+    #[test]
+    fn test_config_store_get_set() {
+        let store = get_config_store();
+
+        // Test default values
+        assert_eq!(
+            store.get(HEARTBEAT_MS.name).unwrap(),
+            ConfigValue::U32(1000)
+        );
+        assert_eq!(
+            store.get(CONFIG_DEMO_VARIABLE1.name).unwrap(),
+            ConfigValue::U32(123)
+        );
+
+        // Test setting values
+        assert!(store.set(HEARTBEAT_MS.name, ConfigValue::U32(2000)).is_ok());
+        assert_eq!(
+            store.get(HEARTBEAT_MS.name).unwrap(),
+            ConfigValue::U32(2000)
+        );
+
+        assert!(
+            store
+                .set(CONFIG_DEMO_VARIABLE1.name, ConfigValue::U32(42))
+                .is_ok()
+        );
+        assert_eq!(
+            store.get(CONFIG_DEMO_VARIABLE1.name).unwrap(),
+            ConfigValue::U32(42)
+        );
+    }
+
+    #[test]
+    fn test_config_store_set_type_mismatch() {
+        let store = get_config_store();
+
+        let result = store.set(CONFIG_DEMO_VARIABLE1.name, ConfigValue::F32(42.0));
+
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotThisType));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_variable() {
+        let result = get_config_store().get("unknown_variable");
+        assert_eq!(result, Err(ConfigError::ConfigVariableNotFound));
+    }
+
+    #[test]
+    fn test_config_store_parse_unknown_type() {
+        let result = ConfigValue::from_str("unknown_type(42)");
+        assert_eq!(result, Err(ConfigError::ConfigVariableUnknownType));
+    }
+
+    #[test]
+    fn test_config_store_parse_invalid_value() {
+        let result = ConfigValue::from_str("u32(not_a_number)");
+        assert_eq!(result, Err(ConfigError::ConfigParseValueTypeError));
     }
 }

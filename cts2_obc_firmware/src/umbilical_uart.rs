@@ -1,11 +1,8 @@
-use core::fmt::Write;
 use core::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-use cts2_obc_telecommands::parse_telecommand;
 use rtt_target::rprintln;
 use stm32l4xx_hal::{self as stm32_hal};
 
-use crate::error::DispatchCommandErr;
-use crate::telecommand_registry::{DispatchOutcome, TELECOMMAND_DEFINITIONS, enqueue};
+use crate::telecommands::exec::executor::{DispatchOutcome, dispatch_command};
 
 /// Maximum length of a telecommand string received over the umbilical UART.
 /// Includes the length of the command name, arguments, terminating newline, etc.
@@ -176,34 +173,6 @@ pub fn process_umbilical_commands() {
             }
         }
     }
-}
-
-fn dispatch_command(cmd_str: &str) -> Result<DispatchOutcome, DispatchCommandErr> {
-    let cmd = match parse_telecommand(cmd_str, TELECOMMAND_DEFINITIONS) {
-        Ok(cmd) => cmd,
-        Err(err) => {
-            send_uart_error(&err);
-            return Err(err.into());
-        }
-    };
-
-    match enqueue(cmd) {
-        Ok(DispatchOutcome::Duplicate) => {
-            send_umbilical_uart(b"ACK: Duplicate command ignored\r\n");
-            Ok(DispatchOutcome::Duplicate)
-        }
-        Ok(outcome) => Ok(outcome),
-        Err(err) => {
-            send_uart_error(&err);
-            Err(err)
-        }
-    }
-}
-
-pub(crate) fn send_uart_error(err: &impl core::fmt::Display) {
-    let mut msg = heapless::String::<128>::new();
-    let _ = write!(msg, "ERR: {err}\r\n");
-    send_umbilical_uart(msg.as_bytes());
 }
 
 /// Send data over the umbilical UART (e.g., as a response to a command).

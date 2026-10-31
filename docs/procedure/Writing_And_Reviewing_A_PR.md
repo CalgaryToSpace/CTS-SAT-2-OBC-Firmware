@@ -1,3 +1,36 @@
+# How to Write a Pull Request (PR)
+
+## Intro
+
+A good PR should make it easy for a reviewer to understand **what changed, why it changed, and how to verify it**.
+
+1. Give the PR a **descriptive title** that clearly explains what the PR accomplishes. Avoid vague titles like `fix stuff` or `updates`.
+2. Write a **short description of what the PR achieves**. Explain the problem being addressed and the resulting change.
+3. Include **testing steps** that a reviewer can follow to reproduce and verify the change on their own machine. Include commands, inputs, expected outputs, or other relevant setup.
+4. If there is a **Github issue** that this PR will close/resolve, link it under the Development section.
+5. Make sure **CI/checks pass** before requesting review.
+
+### PR Description
+
+At minimum, a PR description should answer:
+
+* **What does this PR achieve?**
+* **How can a reviewer test it?**
+
+For example:
+
+```markdown
+## What
+
+This PR implements a new telecommand that returns the current Unix timestamp. Had to work with Orbit to get datasheets and information about the GNSS, which is able to retreive accurate timestamp information. 
+
+## Testing
+
+1. Ensure you have SerialTest open and can ping the hello_world() command and get a response.
+2. Check out to my branch, build and flash the board.
+3. Now try to send the get_unix_timestamp() command and put that in a Unix timestamp converter to ensure it's close.
+```
+
 # How to Review a Pull Request (PR)
 
 ## Intro
