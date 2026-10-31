@@ -25,6 +25,9 @@ pub fn get_config_store() -> &'static ConfigStore {
     &CONFIG_STORE
 }
 
+pub type UnixTimestampMs = u64;
+pub const EXECUTE_IMMEDIATELY: UnixTimestampMs = 0;
+
 #[cfg(test)]
 mod tests {
     use super::*;

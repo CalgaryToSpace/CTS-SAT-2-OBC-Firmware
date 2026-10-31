@@ -1,3 +1,4 @@
+use cts2_obc_logic::error::SchedulerError;
 pub use cts2_obc_telecommands::error::ExecuteCommandErr;
 use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use thiserror::Error;
@@ -9,4 +10,10 @@ pub enum DispatchCommandErr {
 
     #[error("Failed to execute telecommand")]
     ExecuteCommandError(#[from] ExecuteCommandErr),
+
+    #[error("Scheduler error")]
+    Scheduler(#[from] SchedulerError),
+
+    #[error("Telecommand arguments exceed scheduler buffer capacity")]
+    ArgumentsTooLong,
 }
