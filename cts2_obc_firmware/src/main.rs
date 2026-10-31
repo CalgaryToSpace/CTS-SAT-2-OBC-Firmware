@@ -27,8 +27,7 @@ mod scheduler_instance {
     use cortex_m::interrupt::Mutex;
     use cts2_obc_logic::scheduler::Scheduler;
 
-    pub static SCHEDULER: Mutex<RefCell<Scheduler>> =
-        Mutex::new(RefCell::new(Scheduler::const_new()));
+    pub static SCHEDULER: Mutex<RefCell<Scheduler>> = Mutex::new(RefCell::new(Scheduler::new()));
 }
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};

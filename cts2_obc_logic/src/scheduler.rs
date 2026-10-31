@@ -24,7 +24,7 @@ pub struct Task {
     pub tsexec: UnixTimestampMs,
 }
 impl Task {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Task {
             name: "",
             execute: none,
@@ -41,82 +41,42 @@ impl Default for Task {
     }
 }
 
+struct TaskQueue {
+    tasks: [Task; TOTAL_TASKS],
+    head: usize,
+    tail: usize,
+    count: usize,
+}
+
+impl TaskQueue {
+    const fn new() -> Self {
+        const DEFAULT_TASK: Task = Task::new();
+        Self {
+            tasks: [DEFAULT_TASK; TOTAL_TASKS],
+            head: 0,
+            tail: 0,
+            count: 0,
+        }
+    }
+}
+
 pub struct Scheduler {
     delayed_tasks: [Task; DELAYED_TASKS],
-    high_level_tasks: [Task; TOTAL_TASKS],
-    medium_level_tasks: [Task; TOTAL_TASKS],
-    low_level_tasks: [Task; TOTAL_TASKS],
-    debug_level_tasks: [Task; TOTAL_TASKS],
-    count_high: usize,
-    count_medium: usize,
-    count_low: usize,
-    count_debug: usize,
-    head_high: usize,
-    head_medium: usize,
-    head_low: usize,
-    head_debug: usize,
-    tail_high: usize,
-    tail_medium: usize,
-    tail_low: usize,
-    tail_debug: usize,
+    high_level_tasks: TaskQueue,
+    medium_level_tasks: TaskQueue,
+    low_level_tasks: TaskQueue,
+    debug_level_tasks: TaskQueue,
 }
 
 impl Scheduler {
-    pub fn new() -> Self {
-        const DEFAULT_TASK: Task = Task {
-            name: "",
-            execute: none,
-            args: heapless::String::new(),
-            priority: Priority::None,
-            tsexec: EXECUTE_IMMEDIATELY,
-        };
+    pub const fn new() -> Self {
+        const DEFAULT_TASK: Task = Task::new();
         Scheduler {
             delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
-            high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            debug_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            count_high: 0,
-            count_medium: 0,
-            count_low: 0,
-            count_debug: 0,
-            head_high: 0,
-            head_medium: 0,
-            head_low: 0,
-            head_debug: 0,
-            tail_high: 0,
-            tail_medium: 0,
-            tail_low: 0,
-            tail_debug: 0,
-        }
-    }
-
-    pub const fn const_new() -> Self {
-        const DEFAULT_TASK: Task = Task {
-            name: "",
-            execute: none,
-            args: heapless::String::new(),
-            priority: Priority::None,
-            tsexec: EXECUTE_IMMEDIATELY,
-        };
-        Scheduler {
-            delayed_tasks: [DEFAULT_TASK; DELAYED_TASKS],
-            high_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            medium_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            low_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            debug_level_tasks: [DEFAULT_TASK; TOTAL_TASKS],
-            count_high: 0,
-            count_medium: 0,
-            count_low: 0,
-            count_debug: 0,
-            head_high: 0,
-            head_medium: 0,
-            head_low: 0,
-            head_debug: 0,
-            tail_high: 0,
-            tail_medium: 0,
-            tail_low: 0,
-            tail_debug: 0,
+            high_level_tasks: TaskQueue::new(),
+            medium_level_tasks: TaskQueue::new(),
+            low_level_tasks: TaskQueue::new(),
+            debug_level_tasks: TaskQueue::new(),
         }
     }
 
@@ -132,42 +92,24 @@ impl Scheduler {
         }
     }
 
-    pub fn add_ready_task(&mut self, task: Task) -> Result<(), SchedulerError> {
-        match task.priority {
-            Priority::High => {
-                if self.count_high == TOTAL_TASKS {
-                    return Err(SchedulerError::QueueFull); // Queue is full
-                }
-                self.high_level_tasks[self.tail_high] = task;
-                self.tail_high = (self.tail_high + 1) % TOTAL_TASKS;
-                self.count_high += 1;
-            }
-            Priority::Medium => {
-                if self.count_medium == TOTAL_TASKS {
-                    return Err(SchedulerError::QueueFull); // Queue is full
-                }
-                self.medium_level_tasks[self.tail_medium] = task;
-                self.tail_medium = (self.tail_medium + 1) % TOTAL_TASKS;
-                self.count_medium += 1;
-            }
-            Priority::Low => {
-                if self.count_low == TOTAL_TASKS {
-                    return Err(SchedulerError::QueueFull); // Queue is full
-                }
-                self.low_level_tasks[self.tail_low] = task;
-                self.tail_low = (self.tail_low + 1) % TOTAL_TASKS;
-                self.count_low += 1;
-            }
-            Priority::Debug => {
-                if self.count_debug == TOTAL_TASKS {
-                    return Err(SchedulerError::QueueFull); // Queue is full
-                }
-                self.debug_level_tasks[self.tail_debug] = task;
-                self.tail_debug = (self.tail_debug + 1) % TOTAL_TASKS;
-                self.count_debug += 1;
-            }
-            Priority::None => return Err(SchedulerError::InvalidPriority),
+    fn queue_mut(&mut self, priority: Priority) -> Result<&mut TaskQueue, SchedulerError> {
+        match priority {
+            Priority::High => Ok(&mut self.high_level_tasks),
+            Priority::Medium => Ok(&mut self.medium_level_tasks),
+            Priority::Low => Ok(&mut self.low_level_tasks),
+            Priority::Debug => Ok(&mut self.debug_level_tasks),
+            Priority::None => Err(SchedulerError::InvalidPriority),
         }
+    }
+
+    pub fn add_ready_task(&mut self, task: Task) -> Result<(), SchedulerError> {
+        let queue = self.queue_mut(task.priority)?;
+        if queue.count == TOTAL_TASKS {
+            return Err(SchedulerError::QueueFull);
+        }
+        queue.tasks[queue.tail] = task;
+        queue.tail = (queue.tail + 1) % TOTAL_TASKS;
+        queue.count += 1;
         Ok(())
     }
 
@@ -195,13 +137,13 @@ impl Scheduler {
         &mut self,
     ) -> Result<(Task, Result<(), ExecuteCommandErr>), SchedulerError> {
         let task = if !self.is_empty(Priority::High) {
-            self.high_level_tasks[self.head_high].clone()
+            self.high_level_tasks.tasks[self.high_level_tasks.head].clone()
         } else if !self.is_empty(Priority::Medium) {
-            self.medium_level_tasks[self.head_medium].clone()
+            self.medium_level_tasks.tasks[self.medium_level_tasks.head].clone()
         } else if !self.is_empty(Priority::Low) {
-            self.low_level_tasks[self.head_low].clone()
+            self.low_level_tasks.tasks[self.low_level_tasks.head].clone()
         } else if !self.is_empty(Priority::Debug) {
-            self.debug_level_tasks[self.head_debug].clone()
+            self.debug_level_tasks.tasks[self.debug_level_tasks.head].clone()
         } else {
             return Err(SchedulerError::NoTasksAvailable);
         };
@@ -212,38 +154,19 @@ impl Scheduler {
     }
 
     fn remove_head_task(&mut self, priority: Priority) -> Result<(), SchedulerError> {
-        match priority {
-            Priority::High => {
-                self.high_level_tasks[self.head_high] = Task::new();
-                self.head_high = (self.head_high + 1) % TOTAL_TASKS;
-                self.count_high -= 1;
-            }
-            Priority::Medium => {
-                self.medium_level_tasks[self.head_medium] = Task::new();
-                self.head_medium = (self.head_medium + 1) % TOTAL_TASKS;
-                self.count_medium -= 1;
-            }
-            Priority::Low => {
-                self.low_level_tasks[self.head_low] = Task::new();
-                self.head_low = (self.head_low + 1) % TOTAL_TASKS;
-                self.count_low -= 1;
-            }
-            Priority::Debug => {
-                self.debug_level_tasks[self.head_debug] = Task::new();
-                self.head_debug = (self.head_debug + 1) % TOTAL_TASKS;
-                self.count_debug -= 1;
-            }
-            Priority::None => return Err(SchedulerError::InvalidPriority),
-        }
+        let queue = self.queue_mut(priority)?;
+        queue.tasks[queue.head] = Task::new();
+        queue.head = (queue.head + 1) % TOTAL_TASKS;
+        queue.count -= 1;
         Ok(())
     }
 
     pub fn is_empty(&self, priority: Priority) -> bool {
         match priority {
-            Priority::High => self.count_high == 0,
-            Priority::Medium => self.count_medium == 0,
-            Priority::Low => self.count_low == 0,
-            Priority::Debug => self.count_debug == 0,
+            Priority::High => self.high_level_tasks.count == 0,
+            Priority::Medium => self.medium_level_tasks.count == 0,
+            Priority::Low => self.low_level_tasks.count == 0,
+            Priority::Debug => self.debug_level_tasks.count == 0,
             Priority::None => true,
         }
     }
