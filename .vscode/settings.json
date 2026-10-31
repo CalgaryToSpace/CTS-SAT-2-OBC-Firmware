@@ -5,4 +5,5 @@
     "[rust]": {
         "editor.formatOnSave": true
     },
+    "stm32-for-vscode.armToolchainPath": false,
 }
