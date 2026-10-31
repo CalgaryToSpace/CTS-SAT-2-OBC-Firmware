@@ -275,6 +275,8 @@ fn severity_allowed(mask: u32, severity: LogSeverity) -> bool {
     mask & (severity as u32) != 0
 }
 
+// TODO: Handle  messages exceeding LOG_FORMATTED_MESSAGE_MAX_LENGTH.
+
 const LOG_FORMATTED_MESSAGE_MAX_LENGTH: usize = 185;
 
 //formats a log message with its subsystem and severity data
@@ -473,6 +475,12 @@ fn log_set_sink_debugging_enabled(sink: LogSink, enabled: bool) {
 // Returns:
 //     None
 fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
+
+    //checks that the severity mask is valid 
+    if severity_mask & !LOG_SEVERITY_MASK_ALL != 0 {
+        return;
+    }
+
     let system_name = critical_section(|cs| {
         let mut system_configs = LOG_SYSTEMS.borrow(cs).borrow_mut();
 
@@ -609,6 +617,8 @@ fn log_get_configuration() -> LogConfiguration {
 // Log the current configuration of all sinks and subsystems
 fn log_report_configuration() {
     //Note: Currently sends each configuration as a seperate log meassage, not as one message
+    // TODO: return the complete logging configuration into a single structured response instead of separate log messages.
+
     let config = log_get_configuration();
 
     for sink in config.sinks.iter() {
@@ -633,6 +643,42 @@ fn log_report_configuration() {
         }
     }
 }
+
+// Retrieve the current configuration for a specific logging sink
+// Parameters:
+//     sink: the sink to retrieve
+// Returns:
+//     Some(LogSinkConfig): configuration for the requested sink
+//     None: sink not found
+fn log_get_sink_configuration(sink: LogSink) -> Option<LogSinkConfig> {
+    critical_section(|cs| {
+        LOG_SINKS
+            .borrow(cs)
+            .borrow()
+            .iter()
+            .find(|config| config.sink == sink)
+            .copied()
+    })
+}
+
+// Retrieve the current configuration for a specific subsystem
+// Parameters:
+//     system: the subsystem to retrieve
+// Returns:
+//     Some(LogSystemConfig): configuration for the requested subsystem
+//     None: subsystem not found
+fn log_get_system_configuration(system: LogSystem) -> Option<LogSystemConfig> {
+    critical_section(|cs| {
+        LOG_SYSTEMS
+            .borrow(cs)
+            .borrow()
+            .iter()
+            .find(|config| config.system == system)
+            .copied()
+    })
+}
+
+// TODO: Implement a fixed-capacity in-memory ring buffer for storing recent log messages.
 
 
 // TODO:implement radio logging
