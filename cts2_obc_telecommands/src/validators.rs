@@ -113,3 +113,127 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
 
     Ok(())
 }
+
+fn is_valid_log_sink_name(value: &str) -> bool {
+    matches!(value.trim(),"UHF_RADIO" | "UHF" | "FILE" | "UMBILICAL" | "UMBILICAL_UART")
+}
+
+fn is_valid_log_system_name(value: &str) -> bool {
+    matches!(
+        value.trim(),
+        "OBC" | "UHF_RADIO" | "UHF" | "UMBILICAL" | "UMBILICAL_UART"
+        | "GNSS" | "MPI" | "EPS" | "BOOM" | "ADCS" | "LFS"
+        | "FLASH" | "ANTENNA_DEPLOY" | "ANTS" | "LOG" | "TELECOMMAND" | "UNIT_TEST"
+        | "TEST" | "UNKNOWN"
+    )
+}
+
+pub fn set_log_sink_enabled(args: &str) -> Result<(), ParsedTelecommandErr> {
+    let (sink_name, enabled_value) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+
+    if !is_valid_log_sink_name(sink_name) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(0));
+    }
+
+    let (actual_type, rest) = enabled_value
+        .trim()
+        .split_once('(')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentType(1))?;
+
+    if actual_type != "bool" {
+        return Err(ParsedTelecommandErr::InvalidArgumentType(1));
+    }
+
+    let enabled = rest
+        .strip_suffix(')')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentValue(1))?;
+
+    match enabled {
+        "true" | "false" => Ok(()),
+        _ => Err(ParsedTelecommandErr::InvalidArgumentValue(1)),
+    }
+}
+
+pub fn get_log_sink_config(args: &str) -> Result<(), ParsedTelecommandErr> {
+    if !is_valid_log_sink_name(args) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(0));
+    }
+
+    Ok(())
+}
+
+pub fn get_log_system_config(args: &str) -> Result<(), ParsedTelecommandErr> {
+    if !is_valid_log_system_name(args) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(0));
+    }
+
+    Ok(())
+}
+
+pub fn set_log_system_severity_mask(args: &str) -> Result<(), ParsedTelecommandErr> {
+    let (system_name, mask_value) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+
+    if !is_valid_log_system_name(system_name) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(0));
+    }
+
+    let (actual_type, rest) = mask_value
+        .trim()
+        .split_once('(')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentType(1))?;
+
+    if actual_type != "u32" {
+        return Err(ParsedTelecommandErr::InvalidArgumentType(1));
+    }
+
+    let value = rest
+        .strip_suffix(')')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentValue(1))?;
+
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(1));
+    }
+
+    let mask = value
+        .parse::<u32>()
+        .map_err(|_| ParsedTelecommandErr::InvalidArgumentRange(1))?;
+
+    if mask & !0b11111 != 0 {
+        return Err(ParsedTelecommandErr::InvalidArgumentRange(1));
+    }
+
+    Ok(())
+}
+
+pub fn set_log_system_file_logging_enabled(args: &str) -> Result<(), ParsedTelecommandErr> {
+    let (system_name, enabled_value) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+
+    if !is_valid_log_system_name(system_name) {
+        return Err(ParsedTelecommandErr::InvalidArgumentValue(0));
+    }
+
+    let (actual_type, rest) = enabled_value
+        .trim()
+        .split_once('(')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentType(1))?;
+
+    if actual_type != "bool" {
+        return Err(ParsedTelecommandErr::InvalidArgumentType(1));
+    }
+
+    let enabled = rest
+        .strip_suffix(')')
+        .ok_or(ParsedTelecommandErr::InvalidArgumentValue(1))?;
+
+    match enabled {
+        "true" | "false" => Ok(()),
+        _ => Err(ParsedTelecommandErr::InvalidArgumentValue(1)),
+    }
+}
+

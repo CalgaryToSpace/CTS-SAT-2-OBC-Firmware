@@ -3,6 +3,7 @@ use core::fmt::Write;
 use cortex_m::interrupt::free as critical_section;
 use cortex_m::interrupt::Mutex;
 use heapless::String;
+use cts2_obc_telecommands::error::ConfigError;
 
 #[derive(Copy, Clone)]
 #[repr(u32)]
@@ -28,14 +29,37 @@ impl LogSeverity {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
-enum LogSink {
+pub enum LogSink {
     UhfRadio = 1 << 0,
     File = 1 << 1,
     UmbilicalUart = 1 << 2,
 }
 
+impl LogSink {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LogSink::UhfRadio => "UHF_RADIO",
+            LogSink::File => "FILE",
+            LogSink::UmbilicalUart => "UMBILICAL_UART",
+        }
+    }
+}
+
+impl TryFrom<&str> for LogSink {
+    type Error = ConfigError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim() {
+            "UHF_RADIO" | "UHF" => Ok(LogSink::UhfRadio),
+            "FILE" => Ok(LogSink::File),
+            "UMBILICAL" | "UMBILICAL_UART" => Ok(LogSink::UmbilicalUart),
+            _ => Err(ConfigError::ConfigParseValueTypeError),
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
-enum LogSystem {
+pub enum LogSystem {
     Obc,
     UhfRadio,
     UmbilicalUart,
@@ -54,7 +78,7 @@ enum LogSystem {
 }
 
 impl LogSystem {
-    fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             LogSystem::Obc => "OBC",
             LogSystem::UhfRadio => "UHF_RADIO",
@@ -75,8 +99,33 @@ impl LogSystem {
     }
 }
 
+impl TryFrom<&str> for LogSystem {
+    type Error = ConfigError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim() {
+            "OBC" => Ok(LogSystem::Obc),
+            "UHF_RADIO" | "UHF" => Ok(LogSystem::UhfRadio),
+            "UMBILICAL" | "UMBILICAL_UART" => Ok(LogSystem::UmbilicalUart),
+            "GNSS" => Ok(LogSystem::Gnss),
+            "MPI" => Ok(LogSystem::Mpi),
+            "EPS" => Ok(LogSystem::Eps),
+            "BOOM" => Ok(LogSystem::Boom),
+            "ADCS" => Ok(LogSystem::Adcs),
+            "LFS" => Ok(LogSystem::Lfs),
+            "FLASH" => Ok(LogSystem::Flash),
+            "ANTENNA_DEPLOY" => Ok(LogSystem::AntennaDeploy),
+            "LOG" => Ok(LogSystem::Log),
+            "TELECOMMAND" => Ok(LogSystem::Telecommand),
+            "UNIT_TEST" => Ok(LogSystem::UnitTest),
+            "UNKNOWN" => Ok(LogSystem::Unknown),
+            _ => Err(ConfigError::ConfigParseValueTypeError),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
-struct LogSystemConfig{
+pub struct LogSystemConfig {
     system: LogSystem,
     name: &'static str,
     log_file_path: &'static str,
@@ -85,7 +134,7 @@ struct LogSystemConfig{
 }
 
 impl LogSystemConfig {
-    fn format(&self) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
+    pub fn format(&self) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
         let mut message = String::new();
 
         write!(
@@ -102,7 +151,7 @@ impl LogSystemConfig {
 }
 
 #[derive(Copy, Clone)]
-struct LogSinkConfig {
+pub struct LogSinkConfig {
     sink: LogSink,
     name: &'static str,
     enabled: bool,
@@ -110,7 +159,7 @@ struct LogSinkConfig {
 }
 
 impl LogSinkConfig {
-    fn format(&self) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
+    pub fn format(&self) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
         let mut message = String::new();
 
         write!(
@@ -380,7 +429,7 @@ fn log_is_sink_enabled(sink: LogSink) -> bool {
 // Parameters:
 //     sink: the sink to update
 //     enabled: true: enable the sink; false: disable the sink
-fn log_set_sink_enabled(sink: LogSink, enabled: bool) {
+pub fn log_set_sink_enabled(sink: LogSink, enabled: bool) {
     let sink_name = critical_section(|cs| {
         let mut sink_configs = LOG_SINKS.borrow(cs).borrow_mut();
 
@@ -474,7 +523,7 @@ fn log_set_sink_debugging_enabled(sink: LogSink, enabled: bool) {
 //     severity_mask: the new severity mask
 // Returns:
 //     None
-fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
+pub fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
 
     //checks that the severity mask is valid 
     if severity_mask & !LOG_SEVERITY_MASK_ALL != 0 {
@@ -521,7 +570,7 @@ fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
 //     enabled: true: enable file logging; false: disable file logging
 // Returns:
 //     None
-fn log_set_system_file_logging_enabled_state(system: LogSystem, enabled: bool) {
+pub fn log_set_system_file_logging_enabled_state(system: LogSystem, enabled: bool) {
     let system_name = critical_section(|cs| {
         let mut system_configs = LOG_SYSTEMS.borrow(cs).borrow_mut();
 
@@ -650,7 +699,7 @@ fn log_report_configuration() {
 // Returns:
 //     Some(LogSinkConfig): configuration for the requested sink
 //     None: sink not found
-fn log_get_sink_configuration(sink: LogSink) -> Option<LogSinkConfig> {
+pub fn log_get_sink_configuration(sink: LogSink) -> Option<LogSinkConfig> {
     critical_section(|cs| {
         LOG_SINKS
             .borrow(cs)
@@ -667,7 +716,7 @@ fn log_get_sink_configuration(sink: LogSink) -> Option<LogSinkConfig> {
 // Returns:
 //     Some(LogSystemConfig): configuration for the requested subsystem
 //     None: subsystem not found
-fn log_get_system_configuration(system: LogSystem) -> Option<LogSystemConfig> {
+pub fn log_get_system_configuration(system: LogSystem) -> Option<LogSystemConfig> {
     critical_section(|cs| {
         LOG_SYSTEMS
             .borrow(cs)

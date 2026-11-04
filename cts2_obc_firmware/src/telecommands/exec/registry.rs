@@ -1,4 +1,4 @@
-use super::super::implementation::{config, demo, system};
+use super::super::implementation::{config, demo, system, log};
 use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
@@ -73,6 +73,41 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
     },
+    TelecommandDefinition {
+        name: "set_log_sink_enabled",
+        exec: log::set_log_sink_enabled_telecommand,
+        num_parameters: 2,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_sink_enabled,
+    },
+    TelecommandDefinition {
+        name: "get_log_sink_config",
+        exec: log::get_log_sink_config_telecommand,
+        num_parameters: 1,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::get_log_sink_config,
+    },
+    TelecommandDefinition {
+        name: "get_log_system_config",
+        exec: log::get_log_system_config_telecommand,
+        num_parameters: 1,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::get_log_system_config,
+    },
+    TelecommandDefinition {
+        name: "set_log_system_severity_mask",
+        exec: log::set_log_system_severity_mask_telecommand,
+        num_parameters: 2,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_system_severity_mask,
+    },
+    TelecommandDefinition {
+        name: "set_log_system_file_logging_enabled",
+        exec: log::set_log_system_file_logging_enabled_telecommand,
+        num_parameters: 2,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_system_file_logging_enabled,
+    }
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {
