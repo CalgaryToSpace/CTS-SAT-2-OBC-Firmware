@@ -67,8 +67,23 @@ pub enum ConfigError {
     ConfigVariableUnknownType,
 }
 
+#[derive(Debug, PartialEq, Error)]
+pub enum FlashError {
+    #[error("Invalid flash address range")]
+    InvalidRange,
+
+    #[error("Flash read is not allowed for this range")]
+    ReadNotAllowed,
+}
+
 #[derive(Debug, Error)]
 pub enum ExecuteCommandErr {
+    #[error("Invalid command arguments: {0}")]
+    InvalidArguments(#[from] ParsedTelecommandErr),
+
+    #[error("Flash operation error: {0}")]
+    FlashError(#[from] FlashError),
+
     #[error("Failed to serialize command response: {0}")]
     ResponseSerializationError(#[from] ser::Error),
 

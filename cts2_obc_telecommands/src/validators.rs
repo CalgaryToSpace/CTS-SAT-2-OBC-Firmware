@@ -127,6 +127,12 @@ pub fn hex_address(value: &str, index: u8) -> Result<u32, ParsedTelecommandErr> 
 }
 
 pub fn flash_read(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_read(args).map(|_| ())
+}
+
+pub const MAX_FLASH_READ_BYTES: u32 = 256;
+
+pub fn parse_flash_read(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> {
     let (start, length) = args
         .split_once(',')
         .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
@@ -140,12 +146,16 @@ pub fn flash_read(args: &str) -> Result<(), ParsedTelecommandErr> {
         .parse::<u32>()
         .map_err(|_| ParsedTelecommandErr::InvalidArgumentRange(1))?;
 
+    if length > MAX_FLASH_READ_BYTES {
+        return Err(ParsedTelecommandErr::InvalidArgumentRange(1));
+    }
+
     length
         .checked_sub(1)
         .and_then(|offset| start.checked_add(offset))
         .ok_or(ParsedTelecommandErr::InvalidArgumentRange(1))?;
 
-    Ok(())
+    Ok((start, length))
 }
 
 #[cfg(test)]
