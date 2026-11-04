@@ -114,16 +114,16 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
     Ok(())
 }
 
-pub fn hex_address(value: &str, index: u8) -> Result<u32, ParsedTelecommandErr> {
+pub fn hex_address(value: &str) -> Result<u32, ParsedTelecommandErr> {
     let digits = value
         .strip_prefix("0x")
-        .ok_or(ParsedTelecommandErr::InvalidArgumentValue(index))?;
+        .ok_or(ParsedTelecommandErr::MissingHexPrefix)?;
 
     if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(ParsedTelecommandErr::InvalidArgumentValue(index));
+        return Err(ParsedTelecommandErr::InvalidHexDigits);
     }
 
-    u32::from_str_radix(digits, 16).map_err(|_| ParsedTelecommandErr::InvalidArgumentRange(index))
+    u32::from_str_radix(digits, 16).map_err(|_| ParsedTelecommandErr::AddressOutOfRange)
 }
 
 pub fn flash_read(args: &str) -> Result<(), ParsedTelecommandErr> {
@@ -136,24 +136,23 @@ pub fn parse_flash_read(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> 
     let (start, length) = args
         .split_once(',')
         .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
-    let start = hex_address(start, 0)?;
+    let start = hex_address(start)?;
 
     if length.is_empty() || !length.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(ParsedTelecommandErr::InvalidArgumentValue(1));
+        return Err(ParsedTelecommandErr::InvalidByteCount);
     }
 
     let length = length
         .parse::<u32>()
-        .map_err(|_| ParsedTelecommandErr::InvalidArgumentRange(1))?;
+        .map_err(|_| ParsedTelecommandErr::InvalidReadLength)?;
 
-    if length > MAX_FLASH_READ_BYTES {
-        return Err(ParsedTelecommandErr::InvalidArgumentRange(1));
+    if length == 0 || length > MAX_FLASH_READ_BYTES {
+        return Err(ParsedTelecommandErr::InvalidReadLength);
     }
 
-    length
-        .checked_sub(1)
-        .and_then(|offset| start.checked_add(offset))
-        .ok_or(ParsedTelecommandErr::InvalidArgumentRange(1))?;
+    start
+        .checked_add(length - 1)
+        .ok_or(ParsedTelecommandErr::AddressRangeOverflow)?;
 
     Ok((start, length))
 }
@@ -165,32 +164,32 @@ mod tests {
     #[test]
     fn address_requires_prefixed_hex() {
         // Valid hex strings
-        assert_eq!(hex_address("0x08000000", 0), Ok(0x0800_0000));
-        assert_eq!(hex_address("0xabcdefAB", 0), Ok(0xabcd_efab));
-        assert_eq!(hex_address("0xFFFFFFFF", 0), Ok(u32::MAX));
+        assert_eq!(hex_address("0x08000000"), Ok(0x0800_0000));
+        assert_eq!(hex_address("0xabcdefAB"), Ok(0xabcd_efab));
+        assert_eq!(hex_address("0xFFFFFFFF"), Ok(u32::MAX));
 
-        // Invalid hex strings
-        for value in [
-            "08000000",
-            "134217728",
-            "",
-            "0x",
-            "0x+1",
-            "0xGG",
-            "0x08_00",
-            "0x 08",
-        ] {
+        // Invalid hex prefix
+        for value in ["08000000", "134217728", ""] {
             assert_eq!(
-                hex_address(value, 2),
-                Err(ParsedTelecommandErr::InvalidArgumentValue(2)),
+                hex_address(value),
+                Err(ParsedTelecommandErr::MissingHexPrefix),
+                "{value}"
+            );
+        }
+
+        // Invalid whole hex strings
+        for value in ["0x", "0x+1", "0xGG", "0x08_00", "0x 08"] {
+            assert_eq!(
+                hex_address(value),
+                Err(ParsedTelecommandErr::InvalidHexDigits),
                 "{value}"
             );
         }
 
         // Overflow address
         assert_eq!(
-            hex_address("0x100000000", 2),
-            Err(ParsedTelecommandErr::InvalidArgumentRange(2))
+            hex_address("0x100000000"),
+            Err(ParsedTelecommandErr::AddressOutOfRange)
         );
     }
 
@@ -199,15 +198,28 @@ mod tests {
         // Valid ranges
         assert_eq!(flash_read("0x08000000,16"), Ok(()));
         assert_eq!(flash_read("0xFFFFFFFF,1"), Ok(()));
+        assert_eq!(
+            parse_flash_read(&std::format!("0x08000000,{MAX_FLASH_READ_BYTES}")),
+            Ok((0x0800_0000, MAX_FLASH_READ_BYTES))
+        );
 
         // Errors: zero length, overflow, and exceeding u32 range
-        for args in ["0x08000000,0", "0xFFFFFFFF,2", "0x08000000,4294967296"] {
+        for length in [
+            0,
+            u64::from(MAX_FLASH_READ_BYTES) + 1,
+            u64::from(u32::MAX) + 1,
+        ] {
+            let args = std::format!("0x08000000,{length}");
             assert_eq!(
-                flash_read(args),
-                Err(ParsedTelecommandErr::InvalidArgumentRange(1)),
+                flash_read(&args),
+                Err(ParsedTelecommandErr::InvalidReadLength),
                 "{args}"
             );
         }
+        assert_eq!(
+            flash_read("0xFFFFFFFF,2"),
+            Err(ParsedTelecommandErr::AddressRangeOverflow)
+        );
     }
 
     #[test]
@@ -220,7 +232,7 @@ mod tests {
         // Invalid start address
         assert_eq!(
             flash_read("08000000,16"),
-            Err(ParsedTelecommandErr::InvalidArgumentValue(0))
+            Err(ParsedTelecommandErr::MissingHexPrefix)
         );
 
         // Non-decimal length values
@@ -228,7 +240,7 @@ mod tests {
             let args = std::format!("0x08000000,{length}");
             assert_eq!(
                 flash_read(&args),
-                Err(ParsedTelecommandErr::InvalidArgumentValue(1)),
+                Err(ParsedTelecommandErr::InvalidByteCount),
                 "{args}"
             );
         }

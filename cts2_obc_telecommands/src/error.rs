@@ -47,6 +47,24 @@ pub enum ParsedTelecommandErr {
     #[error("Argument out of range at index {0}")]
     InvalidArgumentRange(u8),
 
+    #[error("Address must start with 0x")]
+    MissingHexPrefix,
+
+    #[error("Expected hexadecimal digits after 0x")]
+    InvalidHexDigits,
+
+    #[error("Address exceeds 32-bit range")]
+    AddressOutOfRange,
+
+    #[error("Length must be a decimal byte count")]
+    InvalidByteCount,
+
+    #[error("Read length exceeds maximum allowed")]
+    InvalidReadLength,
+
+    #[error("Requested read extends beyond 32-bit address space")]
+    AddressRangeOverflow,
+
     #[error("Invalid telecommand structure")]
     InvalidCommandFormat,
 }
