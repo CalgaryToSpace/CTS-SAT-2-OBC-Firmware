@@ -82,6 +82,9 @@ const fn assert_valid_segments(segments: &[Segment]) {
 
 const _: () = assert_valid_segments(SEGMENTS);
 
+
+// WARNING: This function assumes that the segments are sorted and non overlapping
+// This could improve to O(log n) incase the memory map is large, but for now this is good enough.
 pub fn is_range_allowed(start: u32, end: u32, attribute: impl Fn(&Segment) -> bool) -> bool {
     if start > end {
         return false;
