@@ -1,4 +1,4 @@
-use super::super::implementation::{config, demo, system};
+use super::super::implementation::{config, demo, flash, system};
 use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
@@ -72,6 +72,13 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 1,
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
+    },
+    TelecommandDefinition {
+        name: "flash_read",
+        exec: flash::flash_read,
+        num_parameters: 2,
+        readiness: ReadinessLevel::GroundUsage,
+        validate: validators::flash_read,
     },
 ];
 
