@@ -1,4 +1,5 @@
-use super::layout::is_range_allowed;
+use super::layout::SEGMENTS;
+use cts2_obc_logic::flash::is_range_allowed;
 use cts2_obc_telecommands::error::FlashError;
 
 pub fn read(start: u32, buffer: &mut [u8]) -> Result<(), FlashError> {
@@ -8,7 +9,7 @@ pub fn read(start: u32, buffer: &mut [u8]) -> Result<(), FlashError> {
         .and_then(|offset| start.checked_add(offset))
         .ok_or(FlashError::InvalidRange)?;
 
-    if !is_range_allowed(start, end, |segment| segment.readable) {
+    if !is_range_allowed(SEGMENTS, start, end, |segment| segment.readable) {
         return Err(FlashError::ReadNotAllowed);
     }
 
