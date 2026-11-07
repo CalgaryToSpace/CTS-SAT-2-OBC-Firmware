@@ -62,9 +62,6 @@ pub enum ParsedTelecommandErr {
     #[error("Read length exceeds maximum allowed")]
     InvalidReadLength,
 
-    #[error("Requested read extends beyond 32-bit address space")]
-    AddressRangeOverflow,
-
     #[error("Invalid telecommand structure")]
     InvalidCommandFormat,
 }

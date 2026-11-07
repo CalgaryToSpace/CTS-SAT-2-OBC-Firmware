@@ -146,13 +146,9 @@ pub fn parse_flash_read(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> 
         .parse::<u32>()
         .map_err(|_| ParsedTelecommandErr::InvalidReadLength)?;
 
-    if length == 0 || length > MAX_FLASH_READ_BYTES {
+    if length > MAX_FLASH_READ_BYTES {
         return Err(ParsedTelecommandErr::InvalidReadLength);
     }
-
-    start
-        .checked_add(length - 1)
-        .ok_or(ParsedTelecommandErr::AddressRangeOverflow)?;
 
     Ok((start, length))
 }
@@ -194,21 +190,17 @@ mod tests {
     }
 
     #[test]
-    fn flash_read_checks_inclusive_range() {
-        // Valid ranges
+    fn flash_read_checks_syntax_and_length_limit() {
         assert_eq!(flash_read("0x08000000,16"), Ok(()));
         assert_eq!(flash_read("0xFFFFFFFF,1"), Ok(()));
+        assert_eq!(flash_read("0xFFFFFFFF,2"), Ok(()));
+        assert_eq!(parse_flash_read("0x08000000,0"), Ok((0x0800_0000, 0)));
         assert_eq!(
             parse_flash_read(&std::format!("0x08000000,{MAX_FLASH_READ_BYTES}")),
             Ok((0x0800_0000, MAX_FLASH_READ_BYTES))
         );
 
-        // Errors: zero length, overflow, and exceeding u32 range
-        for length in [
-            0,
-            u64::from(MAX_FLASH_READ_BYTES) + 1,
-            u64::from(u32::MAX) + 1,
-        ] {
+        for length in [u64::from(MAX_FLASH_READ_BYTES) + 1, u64::from(u32::MAX) + 1] {
             let args = std::format!("0x08000000,{length}");
             assert_eq!(
                 flash_read(&args),
@@ -216,10 +208,6 @@ mod tests {
                 "{args}"
             );
         }
-        assert_eq!(
-            flash_read("0xFFFFFFFF,2"),
-            Err(ParsedTelecommandErr::AddressRangeOverflow)
-        );
     }
 
     #[test]
