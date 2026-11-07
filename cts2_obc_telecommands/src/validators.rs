@@ -126,6 +126,18 @@ pub fn hex_address(value: &str) -> Result<u32, ParsedTelecommandErr> {
     u32::from_str_radix(digits, 16).map_err(|_| ParsedTelecommandErr::AddressOutOfRange)
 }
 
+pub fn hex_data(value: &str) -> Result<&str, ParsedTelecommandErr> {
+    let digits = value
+        .strip_prefix("0x")
+        .ok_or(ParsedTelecommandErr::MissingHexPrefix)?;
+
+    if digits.len() % 2 != 0 || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(ParsedTelecommandErr::InvalidWriteData);
+    }
+
+    Ok(digits)
+}
+
 pub fn flash_read(args: &str) -> Result<(), ParsedTelecommandErr> {
     parse_flash_read(args).map(|_| ())
 }
@@ -153,9 +165,68 @@ pub fn parse_flash_read(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> 
     Ok((start, length))
 }
 
+pub fn flash_write(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_write(args).map(|_| ())
+}
+
+pub fn parse_flash_write(args: &str) -> Result<(u32, &str), ParsedTelecommandErr> {
+    let (start, data) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+
+    let start = hex_address(start)?;
+    let data = hex_data(data)?;
+
+    Ok((start, data))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flash_write_checks_syntax_only() {
+        assert_eq!(
+            parse_flash_write("0x08000000,0x01aBFF"),
+            Ok((0x0800_0000, "01aBFF"))
+        );
+        assert_eq!(parse_flash_write("0x08000000,0x"), Ok((0x0800_0000, "")));
+        assert_eq!(flash_write("0x08000001,0x01"), Ok(()));
+        assert_eq!(flash_write("0xFFFFFFFF,0x0102"), Ok(()));
+    }
+
+    #[test]
+    fn flash_write_rejects_malformed_arguments() {
+        assert_eq!(
+            flash_write("0x08000000"),
+            Err(ParsedTelecommandErr::MissingArgument(1))
+        );
+    }
+
+    #[test]
+    fn data_accepts_large_hex_payload() {
+        let digits = "01aBFF80".repeat(256);
+        let value = std::format!("0x{digits}");
+        assert_eq!(hex_data(&value), Ok(digits.as_str()));
+    }
+
+    #[test]
+    fn data_requires_prefixed_hex_byte_pairs() {
+        for value in ["", "01AB", "0X01"] {
+            assert_eq!(
+                hex_data(value),
+                Err(ParsedTelecommandErr::MissingHexPrefix),
+                "{value}"
+            );
+        }
+        for value in ["0x0", "0xGG", "0x01_02", "0x01 02", "0x01,02", "0xé"] {
+            assert_eq!(
+                hex_data(value),
+                Err(ParsedTelecommandErr::InvalidWriteData),
+                "{value}"
+            );
+        }
+    }
 
     #[test]
     fn address_requires_prefixed_hex() {
