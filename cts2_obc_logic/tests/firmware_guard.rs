@@ -4,7 +4,6 @@
 /// If we need to test firmware crate in the future, REMOVE this file and add
 /// command to test firmware in the `justfile` and fix github actions `rust.yml`
 /// to run tests from firmware
-
 use std::path::Path;
 
 fn check_directory(directory: &Path) {
