@@ -16,7 +16,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_sys_uptime",
@@ -24,7 +23,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_config",
@@ -32,7 +30,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 1,
         readiness: ReadinessLevel::Operation,
         validate: validators::get_config,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "set_config",
@@ -40,7 +37,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 2,
         readiness: ReadinessLevel::Operation,
         validate: validators::set_config,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "set_unix_time",
@@ -48,7 +44,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 1,
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::unix_milliseconds,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_unix_time",
@@ -56,7 +51,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::no_args,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_all_config_variables_jsonl",
@@ -64,7 +58,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_obc_info",
@@ -72,7 +65,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 0,
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
-        argument_is_literal: false,
     },
     TelecommandDefinition {
         name: "get_timestamp",
@@ -80,7 +72,6 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 1,
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
-        argument_is_literal: true,
     },
 ];
 
