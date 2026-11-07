@@ -1,5 +1,9 @@
 use cts2_obc_logic::flash::{Segment, assert_valid_segments, sort_segments};
 
+
+// Undeclared segments will be treated as dead segments, which are not readable, writable, or
+// erasable. If we want to change behavior as full permissions, check logic crate, flash.rs,
+// is_range_allowed function.
 // TODO: Replace the demo segments with the actual flash memory map of the OBC.
 pub const SEGMENTS: &[Segment] = &sort_segments([
     // Demo read-only segment
