@@ -1,5 +1,7 @@
 use super::super::implementation::{config, demo, system};
-use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
+use cts2_obc_telecommands::definitions::{
+    Parameter, ParameterType, ReadinessLevel, TelecommandDefinition,
+};
 use cts2_obc_telecommands::validators;
 
 // For now, each command has an appropriate validator
@@ -14,6 +16,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "hello_world",
         exec: demo::run_hello_world_telecommand,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
@@ -21,6 +24,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_sys_uptime",
         exec: system::get_sys_uptime_ms_telecommand,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
@@ -28,6 +32,12 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_config",
         exec: config::get_config_variable,
         num_parameters: 1,
+        parameter_list: &[Parameter {
+            name: "config_variable_name",
+            data_type: ParameterType::String,
+            units: None,
+            constraints: None,
+        }],
         readiness: ReadinessLevel::Operation,
         validate: validators::get_config,
     },
@@ -35,6 +45,22 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "set_config",
         exec: config::set_config_variable,
         num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "config_variable_name",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            // Since the expected type depends on the config variable, it is processed as a string.
+            // It is the responsibility of the validator to ensure the type matches what is expected.
+            Parameter {
+                name: "type_annotated_value",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+        ],
         readiness: ReadinessLevel::Operation,
         validate: validators::set_config,
     },
@@ -42,6 +68,12 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "set_unix_time",
         exec: system::set_unix_time_telecommand,
         num_parameters: 1,
+        parameter_list: &[Parameter {
+            name: "unix_timestamp",
+            data_type: ParameterType::U64,
+            units: Some("s"),
+            constraints: None,
+        }],
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::unix_milliseconds,
     },
@@ -49,6 +81,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_unix_time",
         exec: system::get_unix_time_telecommand,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::no_args,
     },
@@ -56,6 +89,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_all_config_variables_jsonl",
         exec: config::get_all_config_variables_jsonl,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
@@ -63,6 +97,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_obc_info",
         exec: system::get_obc_info_telecommand,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
@@ -70,6 +105,12 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_timestamp",
         exec: system::get_timestamp_ms_telecommand,
         num_parameters: 1,
+        parameter_list: &[Parameter {
+            name: "TIMEA_log",
+            data_type: ParameterType::String,
+            units: None,
+            constraints: None,
+        }],
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
     },

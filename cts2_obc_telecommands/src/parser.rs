@@ -143,7 +143,7 @@ pub fn parse_telecommand<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::definitions::ReadinessLevel;
+    use crate::definitions::{Parameter, ParameterType, ReadinessLevel};
     use crate::validators;
 
     fn validate_sample(_args: &str) -> Result<(), ParsedTelecommandErr> {
@@ -154,6 +154,20 @@ mod tests {
         TelecommandDefinition {
             name: "sample",
             num_parameters: 2,
+            parameter_list: &[
+                Parameter {
+                    name: "sample_arg1",
+                    data_type: ParameterType::String,
+                    units: None,
+                    constraints: None,
+                },
+                Parameter {
+                    name: "sample_arg2",
+                    data_type: ParameterType::String,
+                    units: None,
+                    constraints: None,
+                },
+            ],
             readiness: ReadinessLevel::GroundUsage,
             exec: |_| panic!("Parsing must not execute commands"),
             validate: validate_sample,
@@ -161,6 +175,7 @@ mod tests {
         TelecommandDefinition {
             name: "sample_empty",
             num_parameters: 0,
+            parameter_list: &[],
             readiness: ReadinessLevel::GroundUsage,
             exec: |_| panic!("Parsing must not execute commands"),
             validate: validators::no_args,
@@ -170,6 +185,20 @@ mod tests {
     const VALIDATION_DEFINITIONS: &[TelecommandDefinition] = &[TelecommandDefinition {
         name: "set_config",
         num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "config_variable_name",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "type_annotated_value",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+        ],
         readiness: ReadinessLevel::Operation,
         exec: |_| panic!("Parser must not execute commands"),
         validate: validators::set_config,
