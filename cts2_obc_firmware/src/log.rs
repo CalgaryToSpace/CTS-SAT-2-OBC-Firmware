@@ -1,9 +1,9 @@
 use core::cell::RefCell;
 use core::fmt::Write;
-use cortex_m::interrupt::free as critical_section;
 use cortex_m::interrupt::Mutex;
-use heapless::String;
+use cortex_m::interrupt::free as critical_section;
 use cts2_obc_telecommands::error::ConfigError;
+use heapless::String;
 
 #[derive(Copy, Clone)]
 #[repr(u32)]
@@ -140,11 +140,9 @@ impl LogSystemConfig {
         write!(
             message,
             "{}: file_logging={}, log_file='{}', severity_mask={:#07b}",
-            self.name,
-            self.file_logging_enabled,
-            self.log_file_path,
-            self.severity_mask
-        ).ok()?;
+            self.name, self.file_logging_enabled, self.log_file_path, self.severity_mask
+        )
+        .ok()?;
 
         Some(message)
     }
@@ -165,16 +163,19 @@ impl LogSinkConfig {
         write!(
             message,
             "{}: enabled={}, severity_mask={:#07b}",
-            self.name,
-            self.enabled,
-            self.severity_mask
-        ).ok()?;
+            self.name, self.enabled, self.severity_mask
+        )
+        .ok()?;
 
         Some(message)
     }
 }
 
 #[derive(Copy, Clone)]
+#[expect(
+    dead_code,
+    reason = "Full configuration reporting is not yet integrated"
+)]
 struct LogConfiguration {
     sinks: [LogSinkConfig; 3],
     systems: [LogSystemConfig; 15],
@@ -202,7 +203,7 @@ static LOG_SINKS: Mutex<RefCell<[LogSinkConfig; 3]>> = Mutex::new(RefCell::new([
     },
 ]));
 
-static LOG_SYSTEMS : Mutex<RefCell<[LogSystemConfig; 15]>> = Mutex::new(RefCell::new([
+static LOG_SYSTEMS: Mutex<RefCell<[LogSystemConfig; 15]>> = Mutex::new(RefCell::new([
     LogSystemConfig {
         system: LogSystem::Obc,
         name: "OBC",
@@ -307,14 +308,18 @@ static LOG_SYSTEMS : Mutex<RefCell<[LogSystemConfig; 15]>> = Mutex::new(RefCell:
         log_file_path: "/logs/unknown_system.log",
         file_logging_enabled: true,
         severity_mask: LOG_SEVERITY_MASK_ALL,
-    }
+    },
 ]));
 
 // Log severity masks for filtering log messages
-const LOG_SEVERITY_MASK_ALL: u32 =
-    (LogSeverity::Debug as u32) | (LogSeverity::Normal as u32) | (LogSeverity::Warning as u32) | (LogSeverity::Error as u32) | (LogSeverity::Critical as u32);
+const LOG_SEVERITY_MASK_ALL: u32 = (LogSeverity::Debug as u32)
+    | (LogSeverity::Normal as u32)
+    | (LogSeverity::Warning as u32)
+    | (LogSeverity::Error as u32)
+    | (LogSeverity::Critical as u32);
 
-const LOG_SEVERITY_MASK_ALL_EXCEPT_DEBUG: u32 = LOG_SEVERITY_MASK_ALL & !(LogSeverity::Debug as u32);
+const LOG_SEVERITY_MASK_ALL_EXCEPT_DEBUG: u32 =
+    LOG_SEVERITY_MASK_ALL & !(LogSeverity::Debug as u32);
 
 const LOG_SINK_MASK_ALL: u32 =
     (LogSink::UhfRadio as u32) | (LogSink::File as u32) | (LogSink::UmbilicalUart as u32);
@@ -329,15 +334,23 @@ fn severity_allowed(mask: u32, severity: LogSeverity) -> bool {
 const LOG_FORMATTED_MESSAGE_MAX_LENGTH: usize = 185;
 
 //formats a log message with its subsystem and severity data
-fn format_log_message(system: &LogSystem,severity: &LogSeverity,message: &str,) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
+fn format_log_message(
+    system: &LogSystem,
+    severity: &LogSeverity,
+    message: &str,
+) -> Option<String<LOG_FORMATTED_MESSAGE_MAX_LENGTH>> {
     let mut formatted_message = String::new();
 
-    if write!(formatted_message,"[{}:{}]: {}",
-        system.as_str(),severity.as_str(),message
-    ).is_err(){
-
+    if write!(
+        formatted_message,
+        "[{}:{}]: {}",
+        system.as_str(),
+        severity.as_str(),
+        message
+    )
+    .is_err()
+    {
         return None;
-
     }
 
     Some(formatted_message)
@@ -350,13 +363,19 @@ fn format_log_message(system: &LogSystem,severity: &LogSeverity,message: &str,) 
 //     sink_mask: bitmask of sinks to send the message to
 //     message: message text
 fn log_message(system: LogSystem, severity: LogSeverity, sink_mask: u32, message: &str) {
-
     //check if the system is enabled for the given severity level
-    let system_config  = critical_section(|cs| {
-        LOG_SYSTEMS.borrow(cs).borrow()
+    let system_config = critical_section(|cs| {
+        LOG_SYSTEMS
+            .borrow(cs)
+            .borrow()
             .iter()
             .find(|system_config| system_config.system == system)
-            .map(|system_config| (system_config.severity_mask, system_config.file_logging_enabled))
+            .map(|system_config| {
+                (
+                    system_config.severity_mask,
+                    system_config.file_logging_enabled,
+                )
+            })
     });
 
     let Some((system_severity_mask, file_logging_enabled)) = system_config else {
@@ -405,26 +424,6 @@ fn log_message(system: LogSystem, severity: LogSeverity, sink_mask: u32, message
     }
 }
 
-// Check logging sink status
-// Parameters:
-//     sink: the sink to check
-// Returns:
-//     false: sink is disabled
-//     true: sink is enabled
-fn log_is_sink_enabled(sink: LogSink) -> bool {
-    critical_section(|cs| {
-        let sink_configs = LOG_SINKS.borrow(cs).borrow();
-
-        for sink_config in sink_configs.iter() {
-            if sink_config.sink == sink {
-                return sink_config.enabled;
-            }
-        }
-
-        false
-    })
-}
-
 // Enable or disable a logging sink
 // Parameters:
 //     sink: the sink to update
@@ -456,17 +455,16 @@ pub fn log_set_sink_enabled(sink: LogSink, enabled: bool) {
     };
 
     if write_result.is_err() {
-            return;
-        }
+        return;
+    }
 
     log_message(
-            LogSystem::Log,
-            LogSeverity::Normal,
-            LOG_SINK_MASK_ALL,
-            &message,
-        );
+        LogSystem::Log,
+        LogSeverity::Normal,
+        LOG_SINK_MASK_ALL,
+        &message,
+    );
 }
-
 
 // Enable or disable debugging messages for a sink
 // Parameters:
@@ -474,6 +472,7 @@ pub fn log_set_sink_enabled(sink: LogSink, enabled: bool) {
 //     enabled: true: enable debugging; false: disable debugging
 // Returns:
 //     None
+#[expect(dead_code, reason = "Debugging control not yet integrated")]
 fn log_set_sink_debugging_enabled(sink: LogSink, enabled: bool) {
     let sink_name = critical_section(|cs| {
         let mut sink_configs = LOG_SINKS.borrow(cs).borrow_mut();
@@ -516,7 +515,6 @@ fn log_set_sink_debugging_enabled(sink: LogSink, enabled: bool) {
     }
 }
 
-
 // Set the logging severity bitfield mask for a subsystem
 // Parameters:
 //     system: the system to update
@@ -524,8 +522,7 @@ fn log_set_sink_debugging_enabled(sink: LogSink, enabled: bool) {
 // Returns:
 //     None
 pub fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
-
-    //checks that the severity mask is valid 
+    //checks that the severity mask is valid
     if severity_mask & !LOG_SEVERITY_MASK_ALL != 0 {
         return;
     }
@@ -559,7 +556,7 @@ pub fn log_set_system_severity_mask(system: LogSystem, severity_mask: u32) {
             LogSystem::Log,
             LogSeverity::Normal,
             LOG_SINK_MASK_ALL,
-            &message
+            &message,
         );
     };
 }
@@ -599,10 +596,11 @@ pub fn log_set_system_file_logging_enabled_state(system: LogSystem, enabled: boo
         log_message(
             LogSystem::Log,
             LogSeverity::Normal,
-            LOG_SINK_MASK_ALL,&message,);
+            LOG_SINK_MASK_ALL,
+            &message,
+        );
     }
 }
-
 
 // Enable or disable debugging messages for a subsystem
 // Parameters:
@@ -610,8 +608,8 @@ pub fn log_set_system_file_logging_enabled_state(system: LogSystem, enabled: boo
 //     enabled: true: enable debugging; false: disable debugging
 // Returns:
 //     None
+#[expect(dead_code, reason = "Subsystem debugging control not yet integrated")]
 fn log_set_system_debugging_messages_state(system: LogSystem, state: bool) {
-
     let mask = LogSeverity::Debug as u32;
 
     let system_name = critical_section(|cs| {
@@ -654,16 +652,16 @@ fn log_set_system_debugging_messages_state(system: LogSystem, state: bool) {
 }
 
 //Retrieve the current logging configuration
+#[expect(dead_code, reason = "Reserved for full configuration retrieval")]
 fn log_get_configuration() -> LogConfiguration {
-    critical_section(|cs| {
-        LogConfiguration {
-            sinks: *LOG_SINKS.borrow(cs).borrow(),
-            systems: *LOG_SYSTEMS.borrow(cs).borrow(),
-        }
+    critical_section(|cs| LogConfiguration {
+        sinks: *LOG_SINKS.borrow(cs).borrow(),
+        systems: *LOG_SYSTEMS.borrow(cs).borrow(),
     })
 }
 
 // Log the current configuration of all sinks and subsystems
+#[expect(dead_code, reason = "Configuration reporting not yet integrated")]
 fn log_report_configuration() {
     //Note: Currently sends each configuration as a seperate log meassage, not as one message
     // TODO: return the complete logging configuration into a single structured response instead of separate log messages.
@@ -729,15 +727,11 @@ pub fn log_get_system_configuration(system: LogSystem) -> Option<LogSystemConfig
 
 // TODO: Implement a fixed-capacity in-memory ring buffer for storing recent log messages.
 
-
 // TODO:implement radio logging
-fn log_to_uhf_radio(_message: &str) {
-}
+fn log_to_uhf_radio(_message: &str) {}
 
 // TODO:implement file system logging
-fn log_to_file(_message: &str) {
-}
+fn log_to_file(_message: &str) {}
 
 // TODO: implement UART logging
-fn log_to_uart(_message: &str) {
-}
+fn log_to_uart(_message: &str) {}

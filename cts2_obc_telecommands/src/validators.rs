@@ -115,16 +115,34 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
 }
 
 fn is_valid_log_sink_name(value: &str) -> bool {
-    matches!(value.trim(),"UHF_RADIO" | "UHF" | "FILE" | "UMBILICAL" | "UMBILICAL_UART")
+    matches!(
+        value.trim(),
+        "UHF_RADIO" | "UHF" | "FILE" | "UMBILICAL" | "UMBILICAL_UART"
+    )
 }
 
 fn is_valid_log_system_name(value: &str) -> bool {
     matches!(
         value.trim(),
-        "OBC" | "UHF_RADIO" | "UHF" | "UMBILICAL" | "UMBILICAL_UART"
-        | "GNSS" | "MPI" | "EPS" | "BOOM" | "ADCS" | "LFS"
-        | "FLASH" | "ANTENNA_DEPLOY" | "ANTS" | "LOG" | "TELECOMMAND" | "UNIT_TEST"
-        | "TEST" | "UNKNOWN"
+        "OBC"
+            | "UHF_RADIO"
+            | "UHF"
+            | "UMBILICAL"
+            | "UMBILICAL_UART"
+            | "GNSS"
+            | "MPI"
+            | "EPS"
+            | "BOOM"
+            | "ADCS"
+            | "LFS"
+            | "FLASH"
+            | "ANTENNA_DEPLOY"
+            | "ANTS"
+            | "LOG"
+            | "TELECOMMAND"
+            | "UNIT_TEST"
+            | "TEST"
+            | "UNKNOWN"
     )
 }
 
@@ -236,4 +254,3 @@ pub fn set_log_system_file_logging_enabled(args: &str) -> Result<(), ParsedTelec
         _ => Err(ParsedTelecommandErr::InvalidArgumentValue(1)),
     }
 }
-

@@ -5,8 +5,7 @@ use cts2_obc_telecommands::error::ConfigError;
 use crate::error::ExecuteCommandErr;
 use crate::log::{
     LogSink, LogSystem, log_get_sink_configuration, log_get_system_configuration,
-    log_set_sink_enabled, log_set_system_file_logging_enabled_state,
-    log_set_system_severity_mask,
+    log_set_sink_enabled, log_set_system_file_logging_enabled_state, log_set_system_severity_mask,
 };
 use crate::umbilical_uart::send_umbilical_uart;
 
@@ -47,8 +46,7 @@ pub fn set_log_sink_enabled_telecommand(args: &str) -> Result<(), ExecuteCommand
 pub fn get_log_sink_config_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
     let sink = LogSink::try_from(args)?;
 
-    let config = log_get_sink_configuration(sink)
-        .ok_or(ConfigError::ConfigVariableNotFound)?;
+    let config = log_get_sink_configuration(sink).ok_or(ConfigError::ConfigVariableNotFound)?;
 
     if let Some(response) = config.format() {
         send_umbilical_uart(response.as_bytes());
@@ -61,8 +59,7 @@ pub fn get_log_sink_config_telecommand(args: &str) -> Result<(), ExecuteCommandE
 pub fn get_log_system_config_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
     let system = LogSystem::try_from(args)?;
 
-    let config = log_get_system_configuration(system)
-        .ok_or(ConfigError::ConfigVariableNotFound)?;
+    let config = log_get_system_configuration(system).ok_or(ConfigError::ConfigVariableNotFound)?;
 
     if let Some(response) = config.format() {
         send_umbilical_uart(response.as_bytes());
@@ -110,7 +107,9 @@ pub fn set_log_system_severity_mask_telecommand(args: &str) -> Result<(), Execut
     Ok(())
 }
 
-pub fn set_log_system_file_logging_enabled_telecommand(args: &str) -> Result<(), ExecuteCommandErr> {
+pub fn set_log_system_file_logging_enabled_telecommand(
+    args: &str,
+) -> Result<(), ExecuteCommandErr> {
     let (system_name, enabled_value) = args
         .split_once(',')
         .ok_or(ConfigError::ConfigParseValueTypeError)?;
@@ -136,7 +135,12 @@ pub fn set_log_system_file_logging_enabled_telecommand(args: &str) -> Result<(),
 
     let mut response = heapless::String::<64>::new();
     let status = if enabled { "enabled" } else { "disabled" };
-    let _ = write!(response, "File logging for {} has been {}", system.as_str(), status);
+    let _ = write!(
+        response,
+        "File logging for {} has been {}",
+        system.as_str(),
+        status
+    );
 
     send_umbilical_uart(response.as_bytes());
     send_umbilical_uart(b"\r\n");

@@ -17,11 +17,11 @@ use stm32l4xx_hal::{
 };
 
 mod error;
+mod log;
 mod reset;
 mod telecommands;
 mod timekeeping;
 mod umbilical_uart;
-mod log;
 
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 

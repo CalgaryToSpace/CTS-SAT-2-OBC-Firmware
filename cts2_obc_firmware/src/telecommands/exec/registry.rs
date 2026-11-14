@@ -1,4 +1,4 @@
-use super::super::implementation::{config, demo, system, log};
+use super::super::implementation::{config, demo, log, system};
 use cts2_obc_telecommands::definitions::{ReadinessLevel, TelecommandDefinition};
 use cts2_obc_telecommands::validators;
 
@@ -107,7 +107,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         num_parameters: 2,
         readiness: ReadinessLevel::Operation,
         validate: validators::set_log_system_file_logging_enabled,
-    }
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {
