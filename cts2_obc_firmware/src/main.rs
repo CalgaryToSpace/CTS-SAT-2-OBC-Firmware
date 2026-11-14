@@ -22,6 +22,14 @@ mod telecommands;
 mod timekeeping;
 mod umbilical_uart;
 
+mod scheduler_instance {
+    use core::cell::RefCell;
+    use cortex_m::interrupt::Mutex;
+    use cts2_obc_logic::scheduler::Scheduler;
+
+    pub static SCHEDULER: Mutex<RefCell<Scheduler>> = Mutex::new(RefCell::new(Scheduler::new()));
+}
+
 use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 
 use crate::umbilical_uart::MAX_TELECOMMAND_STR_LENGTH;
@@ -120,6 +128,7 @@ fn entry_point() -> ! {
         rx_dma.circ_read(buf)
     };
     rprintln!("USART2 initialized for 115200 8N1.");
+    rprintln!("Scheduler initialized.");
 
     unsafe {
         NVIC::unmask(stm32_hal::stm32::Interrupt::USART2);
@@ -142,8 +151,24 @@ fn entry_point() -> ! {
         // Periodically check for incoming commands
         process_umbilical_commands();
 
+        // Run scheduled tasks
+        critical_section(|cs| {
+            let mut scheduler = crate::scheduler_instance::SCHEDULER.borrow(cs).borrow_mut();
+
+            // TODO: Not sure to use this unsync unix time ms or GNSS time
+            if let Some(now) = timekeeping::unix_time_ms() {
+                scheduler.release_task(now);
+            }
+
+            while let Ok((_task, result)) = scheduler.run_next_task() {
+                if let Err(err) = result {
+                    telecommands::exec::executor::send_uart_error(&err);
+                }
+            }
+        });
+
         // Heartbeat message
-        let uptime = get_sys_uptime_ms();
+        let uptime = timekeeping::uptime_ms();
         rprintln!("Heartbeat {} uptime {} ms", i, uptime);
         send_umbilical_uart(b"HEARTBEAT\r\n");
 
@@ -166,10 +191,6 @@ fn timer_delay_ms(ms: u16) {
             timer.delay_ms(ms);
         }
     });
-}
-
-pub fn get_sys_uptime_ms() -> u64 {
-    timekeeping::uptime_ms()
 }
 
 #[inline(never)]
