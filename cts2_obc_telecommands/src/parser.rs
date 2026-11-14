@@ -112,7 +112,8 @@ pub fn parse_telecommand<'a>(
 
         for (i, c) in command_args_str.char_indices() {
             if c == '"' {
-                // Set in_quotes to true if character is in quotes
+                // Set in_quotes to true if entering quotation
+                // Set to false if exiting a quotation
                 in_quotes = !in_quotes;
             } else if c == ' ' && !in_quotes {
                 // Reject spaces only if they are outside literal quotations
@@ -128,6 +129,8 @@ pub fn parse_telecommand<'a>(
             }
         }
 
+        // If in_quotes is still true here, it means we never encountered a closing quotation mark,
+        // and the literal is not correctly defined
         if in_quotes {
             return Err(ParsedTelecommandErr::InvalidCommandFormat);
         }
