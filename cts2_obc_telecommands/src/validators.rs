@@ -113,3 +113,242 @@ pub fn timestamp_timea_log(args: &str) -> Result<(), ParsedTelecommandErr> {
 
     Ok(())
 }
+
+pub fn hex_address(value: &str) -> Result<u32, ParsedTelecommandErr> {
+    let digits = value
+        .strip_prefix("0x")
+        .ok_or(ParsedTelecommandErr::MissingHexPrefix)?;
+
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(ParsedTelecommandErr::InvalidHexDigits);
+    }
+
+    u32::from_str_radix(digits, 16).map_err(|_| ParsedTelecommandErr::AddressOutOfRange)
+}
+
+pub fn hex_data(value: &str) -> Result<&str, ParsedTelecommandErr> {
+    let digits = value
+        .strip_prefix("0x")
+        .ok_or(ParsedTelecommandErr::MissingHexPrefix)?;
+
+    if !digits.len().is_multiple_of(2) || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(ParsedTelecommandErr::InvalidWriteData);
+    }
+
+    Ok(digits)
+}
+
+pub fn flash_read(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_read(args).map(|_| ())
+}
+
+pub const MAX_FLASH_READ_BYTES: u32 = 256;
+
+pub fn parse_flash_read(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> {
+    let (start, length) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+    let start = hex_address(start)?;
+
+    if length.is_empty() || !length.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ParsedTelecommandErr::InvalidByteCount);
+    }
+
+    let length = length
+        .parse::<u32>()
+        .map_err(|_| ParsedTelecommandErr::InvalidReadLength)?;
+
+    if length == 0 || length > MAX_FLASH_READ_BYTES {
+        return Err(ParsedTelecommandErr::InvalidReadLength);
+    }
+
+    Ok((start, length))
+}
+
+pub fn flash_write(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_write(args).map(|_| ())
+}
+
+pub fn parse_flash_write(args: &str) -> Result<(u32, &str), ParsedTelecommandErr> {
+    let (start, data) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+
+    let start = hex_address(start)?;
+    let data = hex_data(data)?;
+
+    Ok((start, data))
+}
+
+pub fn flash_erase(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_erase(args).map(|_| ())
+}
+
+pub fn parse_flash_erase(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> {
+    let (start, page_count) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+    let start = hex_address(start)?;
+
+    if page_count.is_empty() || !page_count.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ParsedTelecommandErr::InvalidPageCount);
+    }
+
+    let page_count = page_count
+        .parse::<u32>()
+        .map_err(|_| ParsedTelecommandErr::InvalidPageCount)?;
+
+    Ok((start, page_count))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flash_write_checks_syntax_only() {
+        assert_eq!(
+            parse_flash_write("0x08000000,0x01aBFF"),
+            Ok((0x0800_0000, "01aBFF"))
+        );
+        assert_eq!(parse_flash_write("0x08000000,0x"), Ok((0x0800_0000, "")));
+        assert_eq!(flash_write("0x08000001,0x01"), Ok(()));
+        assert_eq!(flash_write("0xFFFFFFFF,0x0102"), Ok(()));
+    }
+
+    #[test]
+    fn flash_write_rejects_malformed_arguments() {
+        assert_eq!(
+            flash_write("0x08000000"),
+            Err(ParsedTelecommandErr::MissingArgument(1))
+        );
+    }
+
+    #[test]
+    fn data_accepts_large_hex_payload() {
+        let digits = "01aBFF80".repeat(256);
+        let value = std::format!("0x{digits}");
+        assert_eq!(hex_data(&value), Ok(digits.as_str()));
+    }
+
+    #[test]
+    fn data_requires_prefixed_hex_byte_pairs() {
+        for value in ["", "01AB", "0X01"] {
+            assert_eq!(
+                hex_data(value),
+                Err(ParsedTelecommandErr::MissingHexPrefix),
+                "{value}"
+            );
+        }
+        for value in ["0x0", "0xGG", "0x01_02", "0x01 02", "0x01,02", "0xé"] {
+            assert_eq!(
+                hex_data(value),
+                Err(ParsedTelecommandErr::InvalidWriteData),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn address_requires_prefixed_hex() {
+        // Valid hex strings
+        assert_eq!(hex_address("0x08000000"), Ok(0x0800_0000));
+        assert_eq!(hex_address("0xabcdefAB"), Ok(0xabcd_efab));
+        assert_eq!(hex_address("0xFFFFFFFF"), Ok(u32::MAX));
+
+        // Invalid hex prefix
+        for value in ["08000000", "134217728", ""] {
+            assert_eq!(
+                hex_address(value),
+                Err(ParsedTelecommandErr::MissingHexPrefix),
+                "{value}"
+            );
+        }
+
+        // Invalid whole hex strings
+        for value in ["0x", "0x+1", "0xGG", "0x08_00", "0x 08"] {
+            assert_eq!(
+                hex_address(value),
+                Err(ParsedTelecommandErr::InvalidHexDigits),
+                "{value}"
+            );
+        }
+
+        // Overflow address
+        assert_eq!(
+            hex_address("0x100000000"),
+            Err(ParsedTelecommandErr::AddressOutOfRange)
+        );
+    }
+
+    #[test]
+    fn flash_read_checks_syntax_and_length_limit() {
+        assert_eq!(flash_read("0x08000000,16"), Ok(()));
+        assert_eq!(flash_read("0xFFFFFFFF,1"), Ok(()));
+        assert_eq!(flash_read("0xFFFFFFFF,2"), Ok(()));
+        assert_eq!(
+            parse_flash_read(&std::format!("0x08000000,{MAX_FLASH_READ_BYTES}")),
+            Ok((0x0800_0000, MAX_FLASH_READ_BYTES))
+        );
+
+        for length in [0, u64::from(MAX_FLASH_READ_BYTES) + 1, u64::from(u32::MAX) + 1] {
+            let args = std::format!("0x08000000,{length}");
+            assert_eq!(
+                flash_read(&args),
+                Err(ParsedTelecommandErr::InvalidReadLength),
+                "{args}"
+            );
+        }
+    }
+
+    #[test]
+    fn flash_erase_checks_syntax_only() {
+        assert_eq!(parse_flash_erase("0x080FE000,2"), Ok((0x080F_E000, 2)));
+        assert_eq!(parse_flash_erase("0x08000001,0"), Ok((0x0800_0001, 0)));
+        assert_eq!(flash_erase("0xFFFFFFFF,4294967295"), Ok(()));
+    }
+
+    #[test]
+    fn flash_erase_rejects_malformed_arguments() {
+        assert_eq!(
+            flash_erase("0x080FE000"),
+            Err(ParsedTelecommandErr::MissingArgument(1))
+        );
+        assert_eq!(
+            flash_erase("080FE000,1"),
+            Err(ParsedTelecommandErr::MissingHexPrefix)
+        );
+        for page_count in ["", "-1", "+1", "0x1", "1.5", " 1", "1,1", "4294967296"] {
+            let args = std::format!("0x080FE000,{page_count}");
+            assert_eq!(
+                flash_erase(&args),
+                Err(ParsedTelecommandErr::InvalidPageCount),
+                "{args}"
+            );
+        }
+    }
+
+    #[test]
+    fn flash_read_rejects_malformed_arguments() {
+        assert_eq!(
+            flash_read("0x08000000"),
+            Err(ParsedTelecommandErr::MissingArgument(1))
+        );
+
+        // Invalid start address
+        assert_eq!(
+            flash_read("08000000,16"),
+            Err(ParsedTelecommandErr::MissingHexPrefix)
+        );
+
+        // Non-decimal length values
+        for length in ["", "-1", "+1", "0x10", "1.5", " 16", "16,1"] {
+            let args = std::format!("0x08000000,{length}");
+            assert_eq!(
+                flash_read(&args),
+                Err(ParsedTelecommandErr::InvalidByteCount),
+                "{args}"
+            );
+        }
+    }
+}

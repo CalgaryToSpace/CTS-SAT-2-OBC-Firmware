@@ -1,4 +1,4 @@
-use super::super::implementation::{config, demo, system};
+use super::super::implementation::{config, demo, flash, system};
 use cts2_obc_telecommands::definitions::{
     Parameter, ParameterType, ReadinessLevel, TelecommandDefinition,
 };
@@ -113,6 +113,69 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         }],
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
+    },
+    TelecommandDefinition {
+        name: "flash_read",
+        exec: flash::flash_read,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "start_address",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "length",
+                data_type: ParameterType::U32,
+                units: Some("bytes"),
+                constraints: Some(1..validators::MAX_FLASH_READ_BYTES as u64 + 1),
+            },
+        ],
+        readiness: ReadinessLevel::GroundUsage,
+        validate: validators::flash_read,
+    },
+    TelecommandDefinition {
+        name: "flash_write",
+        exec: flash::flash_write,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "start_address",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "data",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+        ],
+        readiness: ReadinessLevel::GroundUsage,
+        validate: validators::flash_write,
+    },
+    TelecommandDefinition {
+        name: "flash_erase",
+        exec: flash::flash_erase,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "start_address",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "page_count",
+                data_type: ParameterType::U32,
+                units: None,
+                constraints: None,
+            },
+        ],
+        readiness: ReadinessLevel::GroundUsage,
+        validate: validators::flash_erase,
     },
 ];
 

@@ -47,6 +47,27 @@ pub enum ParsedTelecommandErr {
     #[error("Argument out of range at index {0}")]
     InvalidArgumentRange(u8),
 
+    #[error("Hexadecimal value must start with 0x")]
+    MissingHexPrefix,
+
+    #[error("Expected hexadecimal digits after 0x")]
+    InvalidHexDigits,
+
+    #[error("Address exceeds 32-bit range")]
+    AddressOutOfRange,
+
+    #[error("Length must be a decimal byte count")]
+    InvalidByteCount,
+
+    #[error("Read length exceeds maximum allowed")]
+    InvalidReadLength,
+
+    #[error("Write data must contain complete hexadecimal byte pairs")]
+    InvalidWriteData,
+
+    #[error("Page count must be a decimal number within 32-bit range")]
+    InvalidPageCount,
+
     #[error("Invalid telecommand structure")]
     InvalidCommandFormat,
 }
@@ -67,8 +88,47 @@ pub enum ConfigError {
     ConfigVariableUnknownType,
 }
 
+#[derive(Debug, PartialEq, Error)]
+pub enum FlashError {
+    #[error("Invalid flash address range")]
+    InvalidRange,
+
+    #[error("Flash read is not allowed for this range")]
+    ReadNotAllowed,
+
+    #[error("Flash write address must be aligned to 8 bytes")]
+    UnalignedWriteAddress,
+
+    #[error("Flash write is not allowed for this range")]
+    WriteNotAllowed,
+
+    #[error("Failed to unlock flash")]
+    UnlockFailed,
+
+    #[error("Failed to program flash")]
+    WriteFailed,
+
+    #[error("Flash peripheral is not initialized")]
+    NotInitialized,
+
+    #[error("Flash erase address must be aligned to a 4096-byte page")]
+    UnalignedEraseAddress,
+
+    #[error("Flash erase is not allowed for this range")]
+    EraseNotAllowed,
+
+    #[error("Failed to erase flash")]
+    EraseFailed,
+}
+
 #[derive(Debug, Error)]
 pub enum ExecuteCommandErr {
+    #[error("Invalid command arguments: {0}")]
+    InvalidArguments(#[from] ParsedTelecommandErr),
+
+    #[error("Flash operation error: {0}")]
+    FlashError(#[from] FlashError),
+
     #[error("Failed to serialize command response: {0}")]
     ResponseSerializationError(#[from] ser::Error),
 
