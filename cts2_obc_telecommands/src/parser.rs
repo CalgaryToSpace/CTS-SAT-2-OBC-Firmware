@@ -1,6 +1,6 @@
 use crate::definitions::TelecommandDefinition;
 use crate::error::ParsedTelecommandErr;
-use crate::shared::{extract_function_and_args, has_valid_command_structure};
+use crate::shared::has_valid_command_structure;
 
 // TODO:Add more args for other telecommands as needed
 
@@ -76,8 +76,16 @@ pub fn parse_telecommand<'a>(
         return Err(ParsedTelecommandErr::InvalidCommandFormat);
     }
 
+    // Examine arguments before extract_function_and_args()
+    // removes leading and trailing whitespace.
+    let open = command_part
+        .find('(')
+        .ok_or(ParsedTelecommandErr::InvalidCommandFormat)?;
+
+    let raw_args = &command_part[open + 1..command_part.len() - 1];
+
     // Extract command name and argument string
-    let (command_name, command_args_str) = extract_function_and_args(command_part);
+    let command_name = &command_part[..open];
 
     let tcmd_def = telecommand_definitions
         .iter()
@@ -88,13 +96,13 @@ pub fn parse_telecommand<'a>(
     let mut args: [&str; 16] = [""; 16];
     let mut count = 0;
 
-    if !command_args_str.is_empty() {
+    if !raw_args.is_empty() {
         let mut start_idx = 0;
 
         // Use quotations to determine if a command is a string literal
         let mut in_quotes = false;
 
-        for (i, c) in command_args_str.char_indices() {
+        for (i, c) in raw_args.char_indices() {
             if c == '"' {
                 // Set in_quotes to true if entering quotation
                 // Set to false if exiting a quotation
@@ -107,7 +115,7 @@ pub fn parse_telecommand<'a>(
                 if count >= args.len() {
                     return Err(ParsedTelecommandErr::ExceededArgumentCount);
                 }
-                args[count] = &command_args_str[start_idx..i];
+                args[count] = &raw_args[start_idx..i];
                 count += 1;
                 start_idx = i + 1; // Skip the comma
             }
@@ -123,7 +131,7 @@ pub fn parse_telecommand<'a>(
         if count >= args.len() {
             return Err(ParsedTelecommandErr::ExceededArgumentCount);
         }
-        args[count] = &command_args_str[start_idx..];
+        args[count] = &raw_args[start_idx..];
         count += 1;
     }
 
@@ -145,12 +153,12 @@ pub fn parse_telecommand<'a>(
     }
 
     // Pass the args string to the telecommand's corresponding validator
-    (tcmd_def.validate)(command_args_str)?;
+    (tcmd_def.validate)(raw_args)?;
 
     // Return whole telecommand with specific command definition, arguments, and all other important data
     Ok(Telecommand {
         def: tcmd_def,
-        args: command_args_str,
+        args: raw_args,
         ts_sent,
         ts_exec,
         resp_fname,
