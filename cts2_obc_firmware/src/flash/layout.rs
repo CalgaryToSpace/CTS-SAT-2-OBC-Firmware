@@ -1,5 +1,8 @@
 use cts2_obc_logic::flash::{Segment, assert_valid_segments, sort_segments};
 
+pub const FLASH_BASE_ADDRESS: u32 = 0x0800_0000;
+pub const PAGE_SIZE: u32 = 4096;
+
 // Undeclared segments will be treated as dead segments, which are not readable, writable, or
 // erasable. If we want to change behavior as full permissions, check logic crate, flash.rs,
 // is_range_allowed function.

@@ -107,6 +107,15 @@ pub enum FlashError {
 
     #[error("Flash peripheral is not initialized")]
     NotInitialized,
+
+    #[error("Flash erase address must be aligned to a 4096-byte page")]
+    UnalignedEraseAddress,
+
+    #[error("Flash erase is not allowed for this range")]
+    EraseNotAllowed,
+
+    #[error("Failed to erase flash")]
+    EraseFailed,
 }
 
 #[derive(Debug, Error)]
