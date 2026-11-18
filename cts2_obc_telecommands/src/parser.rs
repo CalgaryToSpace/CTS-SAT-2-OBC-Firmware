@@ -1,6 +1,6 @@
 use crate::definitions::TelecommandDefinition;
 use crate::error::ParsedTelecommandErr;
-use crate::shared::has_valid_command_structure;
+use crate::shared::{extract_function_and_args, has_valid_command_structure};
 
 // TODO:Add more args for other telecommands as needed
 
@@ -85,7 +85,7 @@ pub fn parse_telecommand<'a>(
     let raw_args = &command_part[open + 1..command_part.len() - 1];
 
     // Extract command name and argument string
-    let command_name = &command_part[..open];
+    let (command_name, _) = extract_function_and_args(command_part);
 
     let tcmd_def = telecommand_definitions
         .iter()
