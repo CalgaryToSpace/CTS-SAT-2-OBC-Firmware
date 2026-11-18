@@ -84,8 +84,16 @@ pub fn parse_telecommand<'a>(
 
     let raw_args = &command_part[open + 1..command_part.len() - 1];
 
+    // Preserve MissingArgument errors for empty arguments.
+    // Reject whitespace in otherwise complete arguments.
+    if raw_args.split(',').all(|arg| !arg.trim().is_empty())
+        && raw_args.chars().any(char::is_whitespace)
+    {
+        return Err(ParsedTelecommandErr::SpacesNotAllowed);
+    }
+
     // Extract command name and argument string
-    let (command_name, _) = extract_function_and_args(command_part);
+    let (command_name, command_args_str) = extract_function_and_args(command_part);
 
     let tcmd_def = telecommand_definitions
         .iter()
@@ -96,13 +104,13 @@ pub fn parse_telecommand<'a>(
     let mut args: [&str; 16] = [""; 16];
     let mut count = 0;
 
-    if !raw_args.is_empty() {
+    if !command_args_str.is_empty() {
         let mut start_idx = 0;
 
         // Use quotations to determine if a command is a string literal
         let mut in_quotes = false;
 
-        for (i, c) in raw_args.char_indices() {
+        for (i, c) in command_args_str.char_indices() {
             if c == '"' {
                 // Set in_quotes to true if entering quotation
                 // Set to false if exiting a quotation
@@ -115,7 +123,7 @@ pub fn parse_telecommand<'a>(
                 if count >= args.len() {
                     return Err(ParsedTelecommandErr::ExceededArgumentCount);
                 }
-                args[count] = &raw_args[start_idx..i];
+                args[count] = &command_args_str[start_idx..i];
                 count += 1;
                 start_idx = i + 1; // Skip the comma
             }
@@ -131,7 +139,7 @@ pub fn parse_telecommand<'a>(
         if count >= args.len() {
             return Err(ParsedTelecommandErr::ExceededArgumentCount);
         }
-        args[count] = &raw_args[start_idx..];
+        args[count] = &command_args_str[start_idx..];
         count += 1;
     }
 
@@ -152,13 +160,18 @@ pub fn parse_telecommand<'a>(
         }
     }
 
-    // Pass the args string to the telecommand's corresponding validator
-    (tcmd_def.validate)(raw_args)?;
+    let validation_target = if expected_count == 1 && count == 1 {
+        args[0]
+    } else {
+        command_args_str
+    };
+
+    (tcmd_def.validate)(validation_target)?;
 
     // Return whole telecommand with specific command definition, arguments, and all other important data
     Ok(Telecommand {
         def: tcmd_def,
-        args: raw_args,
+        args: command_args_str,
         ts_sent,
         ts_exec,
         resp_fname,
