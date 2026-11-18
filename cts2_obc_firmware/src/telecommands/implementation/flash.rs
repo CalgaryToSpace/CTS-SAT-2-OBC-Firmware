@@ -5,7 +5,7 @@ use crate::flash::wrappers;
 use crate::umbilical_uart::{MAX_TELECOMMAND_STR_LENGTH, send_umbilical_uart};
 use cts2_obc_telecommands::error::ParsedTelecommandErr;
 use cts2_obc_telecommands::validators::{
-    MAX_FLASH_READ_BYTES, parse_flash_read, parse_flash_write,
+    MAX_FLASH_READ_BYTES, parse_flash_erase, parse_flash_read, parse_flash_write,
 };
 
 pub fn flash_read(args: &str) -> Result<(), ExecuteCommandErr> {
@@ -46,6 +46,19 @@ pub fn flash_write(args: &str) -> Result<(), ExecuteCommandErr> {
 
     let mut response = heapless::String::<64>::new();
     write!(response, "flash wrote {} bytes at {}", data.len(), start)?;
+    send_umbilical_uart(response.as_bytes());
+    send_umbilical_uart(b"\r\n");
+
+    Ok(())
+}
+
+pub fn flash_erase(args: &str) -> Result<(), ExecuteCommandErr> {
+    let (start, page_count) = parse_flash_erase(args)?;
+
+    wrappers::erase(start, page_count)?;
+
+    let mut response = heapless::String::<64>::new();
+    write!(response, "flash erased {} pages at {}", page_count, start)?;
     send_umbilical_uart(response.as_bytes());
     send_umbilical_uart(b"\r\n");
 
