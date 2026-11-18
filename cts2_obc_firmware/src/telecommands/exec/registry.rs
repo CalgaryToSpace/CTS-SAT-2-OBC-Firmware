@@ -80,6 +80,13 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::flash_read,
     },
+    TelecommandDefinition {
+        name: "flash_write",
+        exec: flash::flash_write,
+        num_parameters: 2,
+        readiness: ReadinessLevel::GroundUsage,
+        validate: validators::flash_write,
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {

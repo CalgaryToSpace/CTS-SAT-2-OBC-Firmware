@@ -2,8 +2,11 @@ use core::fmt::Write;
 
 use crate::error::ExecuteCommandErr;
 use crate::flash::wrappers;
-use crate::umbilical_uart::send_umbilical_uart;
-use cts2_obc_telecommands::validators::{MAX_FLASH_READ_BYTES, parse_flash_read};
+use crate::umbilical_uart::{MAX_TELECOMMAND_STR_LENGTH, send_umbilical_uart};
+use cts2_obc_telecommands::error::ParsedTelecommandErr;
+use cts2_obc_telecommands::validators::{
+    MAX_FLASH_READ_BYTES, parse_flash_read, parse_flash_write,
+};
 
 pub fn flash_read(args: &str) -> Result<(), ExecuteCommandErr> {
     let (start, length) = parse_flash_read(args)?;
@@ -17,6 +20,27 @@ pub fn flash_read(args: &str) -> Result<(), ExecuteCommandErr> {
         write!(response, "{byte:02X}")?;
     }
 
+    send_umbilical_uart(response.as_bytes());
+    send_umbilical_uart(b"\r\n");
+
+    Ok(())
+}
+
+pub fn flash_write(args: &str) -> Result<(), ExecuteCommandErr> {
+    let (start, hex) = parse_flash_write(args)?;
+    let mut buffer = [0; MAX_TELECOMMAND_STR_LENGTH / 2];
+    let data = buffer
+        .get_mut(..hex.len() / 2)
+        .ok_or(ParsedTelecommandErr::InvalidWriteData)?;
+    for (index, byte) in data.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16)
+            .map_err(|_| ParsedTelecommandErr::InvalidWriteData)?;
+    }
+
+    wrappers::write(start, data)?;
+
+    let mut response = heapless::String::<64>::new();
+    write!(response, "flash wrote {} bytes at {}", data.len(), start)?;
     send_umbilical_uart(response.as_bytes());
     send_umbilical_uart(b"\r\n");
 

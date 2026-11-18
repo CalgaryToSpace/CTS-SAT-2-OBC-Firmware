@@ -37,6 +37,8 @@ static PERIPHERAL_DELAY_TIMER: Mutex<RefCell<Option<stm32_hal::delay::Delay>>> =
 static PERIPHERAL_RCC: Mutex<RefCell<Option<stm32_hal::rcc::Rcc>>> = Mutex::new(RefCell::new(None));
 static PERIPHERAL_CLOCKS: Mutex<RefCell<Option<stm32_hal::rcc::Clocks>>> =
     Mutex::new(RefCell::new(None));
+static PERIPHERAL_FLASH: Mutex<RefCell<Option<stm32_hal::flash::Parts>>> =
+    Mutex::new(RefCell::new(None));
 
 static UART_DMA_UMBILICAL_RX_BUF: StaticCell<[u8; 256]> = StaticCell::new();
 
@@ -65,6 +67,7 @@ fn entry_point() -> ! {
     let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr, &mut pwr);
     critical_section(|cs| {
         PERIPHERAL_CLOCKS.borrow(cs).replace(Some(clocks));
+        PERIPHERAL_FLASH.borrow(cs).replace(Some(flash));
     });
     rprintln!("Clocks configured.");
 

@@ -104,6 +104,9 @@ pub enum FlashError {
 
     #[error("Failed to program flash")]
     WriteFailed,
+
+    #[error("Flash peripheral is not initialized")]
+    NotInitialized,
 }
 
 #[derive(Debug, Error)]
