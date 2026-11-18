@@ -76,22 +76,6 @@ pub fn parse_telecommand<'a>(
         return Err(ParsedTelecommandErr::InvalidCommandFormat);
     }
 
-    // Examine arguments before extract_function_and_args()
-    // removes leading and trailing whitespace.
-    let open = command_part
-        .find('(')
-        .ok_or(ParsedTelecommandErr::InvalidCommandFormat)?;
-
-    let raw_args = &command_part[open + 1..command_part.len() - 1];
-
-    // Preserve MissingArgument errors for empty arguments.
-    // Reject whitespace in otherwise complete arguments.
-    if raw_args.split(',').all(|arg| !arg.trim().is_empty())
-        && raw_args.chars().any(char::is_whitespace)
-    {
-        return Err(ParsedTelecommandErr::SpacesNotAllowed);
-    }
-
     // Extract command name and argument string
     let (command_name, command_args_str) = extract_function_and_args(command_part);
 
@@ -160,13 +144,8 @@ pub fn parse_telecommand<'a>(
         }
     }
 
-    let validation_target = if expected_count == 1 && count == 1 {
-        args[0]
-    } else {
-        command_args_str
-    };
-
-    (tcmd_def.validate)(validation_target)?;
+    // Pass the args string to the telecommand's corresponding validator
+    (tcmd_def.validate)(command_args_str)?;
 
     // Return whole telecommand with specific command definition, arguments, and all other important data
     Ok(Telecommand {
