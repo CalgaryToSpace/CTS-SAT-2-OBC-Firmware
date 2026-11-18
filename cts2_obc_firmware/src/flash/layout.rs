@@ -1,5 +1,6 @@
 use cts2_obc_logic::flash::{Segment, assert_valid_segments, sort_segments};
 
+// TODO: Double check these constants too, a page size could different than the one defined here
 pub const FLASH_BASE_ADDRESS: u32 = 0x0800_0000;
 pub const PAGE_SIZE: u32 = 4096;
 
