@@ -47,7 +47,7 @@ pub fn write(flash: &mut Parts, start: u32, data: &[u8]) -> Result<(), FlashErro
 
     flash_registers.sr.modify(|_, w| w); // Just a trick clearing errors bit before write
     let result = programming.write(start as usize, data);
-    flash_registers.cr.modify(|_, w| w.pg().clear_bit()); // Same thing but turn off programming too
+    flash_registers.cr.modify(|_, w| w.pg().clear_bit()); // Only clear PG bit
 
     result.map_err(|_| FlashError::WriteFailed)
 }
