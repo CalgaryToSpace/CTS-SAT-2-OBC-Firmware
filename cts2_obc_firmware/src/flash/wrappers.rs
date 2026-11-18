@@ -27,7 +27,9 @@ pub fn write(flash: &mut Parts, start: u32, data: &[u8]) -> Result<(), FlashErro
     }
 
     let length = u32::try_from(data.len()).map_err(|_| FlashError::InvalidRange)?;
-    let padded_length = length.checked_add(7).ok_or(FlashError::InvalidRange)? & !7;
+    let padded_length = length
+        .checked_next_multiple_of(8)
+        .ok_or(FlashError::InvalidRange)?;
     let end = padded_length
         .checked_sub(1)
         .and_then(|offset| start.checked_add(offset))
