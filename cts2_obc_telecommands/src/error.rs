@@ -92,6 +92,18 @@ pub enum FlashError {
 
     #[error("Flash read is not allowed for this range")]
     ReadNotAllowed,
+
+    #[error("Flash write address must be aligned to 8 bytes")]
+    UnalignedWriteAddress,
+
+    #[error("Flash write is not allowed for this range")]
+    WriteNotAllowed,
+
+    #[error("Failed to unlock flash")]
+    UnlockFailed,
+
+    #[error("Failed to program flash")]
+    WriteFailed,
 }
 
 #[derive(Debug, Error)]
