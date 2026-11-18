@@ -73,6 +73,13 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::Operation,
         validate: validators::timestamp_timea_log,
     },
+    TelecommandDefinition {
+        name: "get_temperature",
+        exec: system::get_temperature,
+        num_parameters: 0,
+        readiness: ReadinessLevel::Operation,
+        validate: validators::no_args,
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {

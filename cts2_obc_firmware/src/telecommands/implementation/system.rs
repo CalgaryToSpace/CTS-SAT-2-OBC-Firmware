@@ -81,3 +81,15 @@ pub fn get_unix_time_telecommand(_args: &str) -> Result<(), ExecuteCommandErr> {
 
     Ok(())
 }
+
+pub fn get_temperature(_args: &str) -> Result<(), ExecuteCommandErr> {
+    let temperature = crate::obc_temperature_sensor::obc_temp_sensor_get_temperature_c_c();
+
+    let buff = heapless::format!(64; "OBC Temperature: {} cC\r\n", temperature)
+        .unwrap()
+        .into_bytes();
+
+    send_umbilical_uart(&buff);
+
+    Ok(())
+}

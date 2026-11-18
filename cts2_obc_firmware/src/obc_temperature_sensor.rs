@@ -2,10 +2,8 @@ use core::cell::RefCell;
 use cortex_m::interrupt;
 use cortex_m::interrupt::Mutex;
 use rtt_target::rprintln;
-use stm32l4xx_hal::hal::blocking::delay::DelayMs;
 use stm32l4xx_hal::hal::blocking::i2c::Write;
 use stm32l4xx_hal::hal::blocking::i2c::WriteRead;
-use stm32l4xx_hal::i2c::I2c;
 
 const STDS75_SERIAL_BUS_SLAVE_ADDRESS: u16 = 0x48;
 const OBC_TEMP_SENSOR_TEMP_REGISTER_ADDR: u8 = 0x00;
@@ -250,7 +248,7 @@ where
     });
 
     let status = i2c.write(
-        OBC_TEMP_SENSOR_CONFIG_REGISTER_ADDR,
+        OBC_TEMP_SENSOR_DEVICE_ADDR,
         &[
             OBC_TEMP_SENSOR_CONFIG_REGISTER_ADDR,
             precision_data.config_write_data,
@@ -264,39 +262,48 @@ where
     return 0;
 }
 
-fn obc_temp_sensor_get_temperature_c_c<I2C, D>(i2c: &mut I2C, delay: &mut D) -> i32
-where
-    I2C: Write + WriteRead,
-    D: DelayMs<u32>,
-{
+pub(crate) fn obc_temp_sensor_get_temperature_c_c() -> i32 {
     const TEMP_PRECISION: u8 = 10;
 
-    let mut temp_precision_conversion_delay_ms: u32 = 0;
-    let mut temp_scaling_factor: u32 = 0;
+    // Temporarily take ownership of the global I2C peripheral.
+    let i2c = interrupt::free(|cs| crate::PERIPHERAL_I2C1.borrow(cs).borrow_mut().take());
 
-    let set_precision_status = obc_temp_sensor_set_temp_precision(
-        TEMP_PRECISION,
-        i2c,
-        &mut temp_precision_conversion_delay_ms,
-        &mut temp_scaling_factor,
-    );
-
-    if set_precision_status != 0 {
+    let Some(mut i2c) = i2c else {
         return OBC_TEMP_SENSOR_ERROR_TEMPERATURE_CC;
-    }
+    };
 
-    // Give time for sensor to convert value.
-    crate::timer_delay_ms(temp_precision_conversion_delay_ms as u16);
+    let temperature_result = {
+        let mut temp_precision_conversion_delay_ms: u32 = 0;
+        let mut temp_scaling_factor: u32 = 0;
 
-    // Read temperature.
-    let mut temperature: i32 = 0;
+        let set_precision_status = obc_temp_sensor_set_temp_precision(
+            TEMP_PRECISION,
+            &mut i2c,
+            &mut temp_precision_conversion_delay_ms,
+            &mut temp_scaling_factor,
+        );
 
-    let success_result = obc_temp_sensor_read_temperature(i2c, &mut temperature);
+        if set_precision_status != 0 {
+            OBC_TEMP_SENSOR_ERROR_TEMPERATURE_CC
+        } else {
+            crate::timer_delay_ms(temp_precision_conversion_delay_ms as u16);
 
-    if success_result != 0 {
-        return OBC_TEMP_SENSOR_ERROR_TEMPERATURE_CC;
-    }
+            let mut temperature: i32 = 0;
 
-    // Convert to cC.
-    ((temperature as f32 * 100.0) / temp_scaling_factor as f32) as i32
+            let success_result = obc_temp_sensor_read_temperature(&mut i2c, &mut temperature);
+
+            if success_result != 0 {
+                OBC_TEMP_SENSOR_ERROR_TEMPERATURE_CC
+            } else {
+                ((temperature as f32 * 100.0) / temp_scaling_factor as f32) as i32
+            }
+        }
+    };
+
+    // Put the I2C peripheral back into the global.
+    interrupt::free(|cs| {
+        crate::PERIPHERAL_I2C1.borrow(cs).replace(Some(i2c));
+    });
+
+    temperature_result
 }
