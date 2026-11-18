@@ -22,7 +22,7 @@ pub fn read(start: u32, buffer: &mut [u8]) -> Result<(), FlashError> {
 }
 
 pub fn write(flash: &mut Parts, start: u32, data: &[u8]) -> Result<(), FlashError> {
-    if start % 8 != 0 {
+    if !start.is_multiple_of(8) {
         return Err(FlashError::UnalignedWriteAddress);
     }
 

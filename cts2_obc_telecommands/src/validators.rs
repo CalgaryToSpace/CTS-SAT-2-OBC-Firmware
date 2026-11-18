@@ -131,7 +131,7 @@ pub fn hex_data(value: &str) -> Result<&str, ParsedTelecommandErr> {
         .strip_prefix("0x")
         .ok_or(ParsedTelecommandErr::MissingHexPrefix)?;
 
-    if digits.len() % 2 != 0 || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if !digits.len().is_multiple_of(2) || !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(ParsedTelecommandErr::InvalidWriteData);
     }
 
