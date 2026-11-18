@@ -180,6 +180,27 @@ pub fn parse_flash_write(args: &str) -> Result<(u32, &str), ParsedTelecommandErr
     Ok((start, data))
 }
 
+pub fn flash_erase(args: &str) -> Result<(), ParsedTelecommandErr> {
+    parse_flash_erase(args).map(|_| ())
+}
+
+pub fn parse_flash_erase(args: &str) -> Result<(u32, u32), ParsedTelecommandErr> {
+    let (start, page_count) = args
+        .split_once(',')
+        .ok_or(ParsedTelecommandErr::MissingArgument(1))?;
+    let start = hex_address(start)?;
+
+    if page_count.is_empty() || !page_count.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ParsedTelecommandErr::InvalidPageCount);
+    }
+
+    let page_count = page_count
+        .parse::<u32>()
+        .map_err(|_| ParsedTelecommandErr::InvalidPageCount)?;
+
+    Ok((start, page_count))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,6 +297,33 @@ mod tests {
             assert_eq!(
                 flash_read(&args),
                 Err(ParsedTelecommandErr::InvalidReadLength),
+                "{args}"
+            );
+        }
+    }
+
+    #[test]
+    fn flash_erase_checks_syntax_only() {
+        assert_eq!(parse_flash_erase("0x080FE000,2"), Ok((0x080F_E000, 2)));
+        assert_eq!(parse_flash_erase("0x08000001,0"), Ok((0x0800_0001, 0)));
+        assert_eq!(flash_erase("0xFFFFFFFF,4294967295"), Ok(()));
+    }
+
+    #[test]
+    fn flash_erase_rejects_malformed_arguments() {
+        assert_eq!(
+            flash_erase("0x080FE000"),
+            Err(ParsedTelecommandErr::MissingArgument(1))
+        );
+        assert_eq!(
+            flash_erase("080FE000,1"),
+            Err(ParsedTelecommandErr::MissingHexPrefix)
+        );
+        for page_count in ["", "-1", "+1", "0x1", "1.5", " 1", "1,1", "4294967296"] {
+            let args = std::format!("0x080FE000,{page_count}");
+            assert_eq!(
+                flash_erase(&args),
+                Err(ParsedTelecommandErr::InvalidPageCount),
                 "{args}"
             );
         }

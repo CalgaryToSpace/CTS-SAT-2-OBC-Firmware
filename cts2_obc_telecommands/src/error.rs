@@ -65,6 +65,9 @@ pub enum ParsedTelecommandErr {
     #[error("Write data must contain complete hexadecimal byte pairs")]
     InvalidWriteData,
 
+    #[error("Page count must be a decimal number within 32-bit range")]
+    InvalidPageCount,
+
     #[error("Invalid telecommand structure")]
     InvalidCommandFormat,
 }
