@@ -118,6 +118,7 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         name: "get_temperature",
         exec: system::get_temperature,
         num_parameters: 0,
+        parameter_list: &[],
         readiness: ReadinessLevel::Operation,
         validate: validators::no_args,
     },
