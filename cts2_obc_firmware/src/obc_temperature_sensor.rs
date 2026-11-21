@@ -1,19 +1,19 @@
 use core::cell::RefCell;
 use cortex_m::interrupt;
 use cortex_m::interrupt::Mutex;
-use rtt_target::rprintln;
+//use rtt_target::rprintln;
 use stm32l4xx_hal::hal::blocking::i2c::Write;
 use stm32l4xx_hal::hal::blocking::i2c::WriteRead;
 
-const STDS75_SERIAL_BUS_SLAVE_ADDRESS: u16 = 0x48;
+//const STDS75_SERIAL_BUS_SLAVE_ADDRESS: u16 = 0x48;
 const OBC_TEMP_SENSOR_TEMP_REGISTER_ADDR: u8 = 0x00;
-const OBC_TEMP_SENSOR_TIMEOUT_MS: u32 = 50;
+//const OBC_TEMP_SENSOR_TIMEOUT_MS: u32 = 50;
 
 // write to this register to change the precision
 const OBC_TEMP_SENSOR_CONFIG_REGISTER_ADDR: u8 = 0x01;
 
 // 0x00 for nine bit, 0x01 for 10 bit, 0x02 for 11 bit, 0x03 for 12 bit
-const OBC_TEMP_SENSOR_PRECISION: u8 = 0x01 << 5;
+//const OBC_TEMP_SENSOR_PRECISION: u8 = 0x01 << 5;
 const OBC_TEMP_SENSOR_DEVICE_ADDR: u8 = 0x48;
 
 const OBC_TEMP_SENSOR_NINE_BIT_SCALING_FACTOR: u32 = 10;
@@ -30,10 +30,10 @@ const OBC_TEMP_SENSOR_TWELVE_BIT_PRECISION_COEFFICIENT: f32 = 16.0;
 
 #[derive(Copy, Clone)]
 enum TemperatureSensorDataPrecisionInsignificantBytes {
-    ObcTempSensorTwelveBitPrecisionInsignificantBytes = 4,
-    ObcTempSensorElevenBitPrecisionInsignificantBytes,
-    ObcTempSensorTenBitPrecisionInsignificantBytes,
-    ObcTempSensorNineBitPrecisionInsignificantBytes,
+    Twelve = 4,
+    Eleven,
+    Ten,
+    Nine,
 }
 
 // used in temperature calculation
@@ -43,7 +43,7 @@ static OBC_TEMP_SENSOR_PRECISION_COEFFICIENT: Mutex<RefCell<f32>> =
 static OBC_TEMP_SENSOR_PRECISION_INSIGNIFICANT_BITS: Mutex<
     RefCell<TemperatureSensorDataPrecisionInsignificantBytes>,
 > = Mutex::new(RefCell::new(
-    TemperatureSensorDataPrecisionInsignificantBytes::ObcTempSensorTenBitPrecisionInsignificantBytes,
+    TemperatureSensorDataPrecisionInsignificantBytes::Ten,
 ));
 
 static OBC_TEMP_SENSOR_PRECISION_SCALING_FACTOR: Mutex<RefCell<u32>> =
@@ -66,8 +66,7 @@ impl Default for SetPrecisionData {
         Self {
             precision_scaling_factor: 0,
             obc_temp_sensor_precision_coefficient: 1.0,
-            precision_insignificant_bits:
-                TemperatureSensorDataPrecisionInsignificantBytes::ObcTempSensorTwelveBitPrecisionInsignificantBytes,
+            precision_insignificant_bits: TemperatureSensorDataPrecisionInsignificantBytes::Twelve,
             config_write_data: 0,
             conversion_delay_ms: 0,
         }
@@ -87,7 +86,7 @@ fn obc_temp_sensor_convert_raw_to_deg_c(
     val >>= precision_insignificant_bits as u8;
 
     // Calculate temperature in degrees Celsius
-    let temp: f32 = val as f32 / precision_coefficient as f32;
+    let temp: f32 = val as f32 / precision_coefficient;
 
     // Convert temperature to a value without fractional bits
     let result: i32 = (temp * precision_scaling_factor as f32) as i32;
@@ -95,7 +94,7 @@ fn obc_temp_sensor_convert_raw_to_deg_c(
     result
 }
 
-fn obc_temp_sensor_get_temp_precision<I2C>(i2c: &mut I2C) -> i8
+/*fn obc_temp_sensor_get_temp_precision<I2C>(i2c: &mut I2C) -> i8
 where
     I2C: WriteRead,
 {
@@ -115,7 +114,7 @@ where
 
     // Put the precision bits into the 2 least-significant bits
     ((buf[0] & precision_mask) >> 5) as i8
-}
+}*/
 
 fn obc_temp_sensor_read_temperature<I2C>(i2c: &mut I2C, result: &mut i32) -> u8
 where
@@ -164,8 +163,7 @@ fn obc_temp_sensor_configure_precision_values(
             precision_data.precision_scaling_factor = OBC_TEMP_SENSOR_NINE_BIT_SCALING_FACTOR;
 
             precision_data.precision_insignificant_bits =
-                TemperatureSensorDataPrecisionInsignificantBytes::
-                    ObcTempSensorNineBitPrecisionInsignificantBytes;
+                TemperatureSensorDataPrecisionInsignificantBytes::Nine;
 
             precision_data.obc_temp_sensor_precision_coefficient =
                 OBC_TEMP_SENSOR_NINE_BIT_PRECISION_COEFFICIENT;
@@ -178,8 +176,7 @@ fn obc_temp_sensor_configure_precision_values(
         10 => {
             precision_data.precision_scaling_factor = OBC_TEMP_SENSOR_TEN_BIT_SCALING_FACTOR;
             precision_data.precision_insignificant_bits =
-                TemperatureSensorDataPrecisionInsignificantBytes::
-                    ObcTempSensorTenBitPrecisionInsignificantBytes;
+                TemperatureSensorDataPrecisionInsignificantBytes::Ten;
             precision_data.obc_temp_sensor_precision_coefficient =
                 OBC_TEMP_SENSOR_TEN_BIT_PRECISION_COEFFICIENT;
             precision_data.config_write_data = 0x01u8 << 5;
@@ -189,8 +186,7 @@ fn obc_temp_sensor_configure_precision_values(
         11 => {
             precision_data.precision_scaling_factor = OBC_TEMP_SENSOR_ELEVEN_BIT_SCALING_FACTOR;
             precision_data.precision_insignificant_bits =
-                TemperatureSensorDataPrecisionInsignificantBytes::
-                    ObcTempSensorElevenBitPrecisionInsignificantBytes;
+                TemperatureSensorDataPrecisionInsignificantBytes::Eleven;
             precision_data.obc_temp_sensor_precision_coefficient =
                 OBC_TEMP_SENSOR_ELEVEN_BIT_PRECISION_COEFFICIENT;
             precision_data.config_write_data = 0x02u8 << 5;
@@ -200,8 +196,7 @@ fn obc_temp_sensor_configure_precision_values(
         12 => {
             precision_data.precision_scaling_factor = OBC_TEMP_SENSOR_TWELVE_BIT_SCALING_FACTOR;
             precision_data.precision_insignificant_bits =
-                TemperatureSensorDataPrecisionInsignificantBytes::
-                    ObcTempSensorTwelveBitPrecisionInsignificantBytes;
+                TemperatureSensorDataPrecisionInsignificantBytes::Twelve;
             precision_data.obc_temp_sensor_precision_coefficient =
                 OBC_TEMP_SENSOR_TWELVE_BIT_PRECISION_COEFFICIENT;
             precision_data.config_write_data = 0x03u8 << 5;
@@ -255,11 +250,9 @@ where
         ],
     );
 
-    if status.is_err() {
-        return 1;
-    }
+    if status.is_err() { 1 } else { 0 }
 
-    return 0;
+    //return 0;
 }
 
 pub(crate) fn obc_temp_sensor_get_temperature_c_c() -> i32 {
