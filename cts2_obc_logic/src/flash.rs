@@ -410,4 +410,166 @@ mod tests {
             assert!(is_range_allowed(&[segment], u32::MAX, u32::MAX, |s| s.readable));
         }
     }
+
+    mod end_address {
+        use super::*;
+
+        #[test]
+        fn includes_last_byte() {
+            assert_eq!(end_address(10, 10), Ok(19));
+        }
+
+        #[test]
+        fn reaches_max_address() {
+            assert_eq!(end_address(u32::MAX, 1), Ok(u32::MAX));
+        }
+
+        #[test]
+        fn rejects_overflow() {
+            assert_eq!(end_address(u32::MAX, 2), Err(FlashError::InvalidRange));
+        }
+
+        #[test]
+        fn rejects_zero_length() {
+            assert_eq!(end_address(10, 0), Err(FlashError::InvalidRange));
+        }
+    }
+
+    mod read {
+        use super::*;
+
+        #[test]
+        fn requires_readable_permission() {
+            let unreadable = Segment {
+                readable: false,
+                writable: true,
+                erasable: true,
+                ..READ_ONLY
+            };
+            assert_eq!(check_read(&[READ_ONLY], 10, 10), Ok(()));
+            assert_eq!(
+                check_read(&[unreadable], 10, 10),
+                Err(FlashError::ReadNotAllowed)
+            );
+        }
+
+        #[test]
+        fn rejects_length_beyond_u32() {
+            assert_eq!(
+                check_read(&[READ_ONLY], 10, usize::MAX),
+                Err(FlashError::InvalidRange)
+            );
+        }
+    }
+
+    mod write {
+        use super::*;
+
+        const WRITABLE: Segment = Segment {
+            start: 16,
+            end: 23,
+            writable: true,
+            ..READ_ONLY
+        };
+
+        #[test]
+        fn requires_writable_permission() {
+            let read_only = Segment {
+                writable: false,
+                ..WRITABLE
+            };
+            assert_eq!(check_write(&[WRITABLE], 16, 8), Ok(()));
+            assert_eq!(
+                check_write(&[read_only], 16, 8),
+                Err(FlashError::WriteNotAllowed)
+            );
+        }
+
+        #[test]
+        fn rejects_unaligned_start() {
+            assert_eq!(
+                check_write(&[WRITABLE], 17, 1),
+                Err(FlashError::UnalignedWriteAddress)
+            );
+        }
+
+        #[test]
+        fn includes_padding_in_range() {
+            let short = Segment {
+                end: 19,
+                ..WRITABLE
+            };
+            assert_eq!(
+                check_write(&[short], 16, 1),
+                Err(FlashError::WriteNotAllowed)
+            );
+        }
+
+        #[test]
+        fn rejects_padding_overflow() {
+            assert_eq!(
+                check_write(&[WRITABLE], 16, u32::MAX as usize),
+                Err(FlashError::InvalidRange)
+            );
+        }
+    }
+
+    mod erase {
+        use super::*;
+
+        const ERASABLE: Segment = Segment {
+            erasable: true,
+            ..READ_ONLY
+        };
+
+        #[test]
+        fn requires_erasable_permission() {
+            assert_eq!(check_erase(&[ERASABLE], 0, 10, 10, 1), Ok(1));
+            assert_eq!(
+                check_erase(&[READ_ONLY], 0, 10, 10, 1),
+                Err(FlashError::EraseNotAllowed)
+            );
+        }
+
+        #[test]
+        fn first_page_is_relative_to_base() {
+            assert_eq!(check_erase(&[ERASABLE], 10, 10, 10, 1), Ok(0));
+        }
+
+        #[test]
+        fn covers_whole_page() {
+            let short = Segment {
+                end: 18,
+                ..ERASABLE
+            };
+            assert_eq!(
+                check_erase(&[short], 0, 10, 10, 1),
+                Err(FlashError::EraseNotAllowed)
+            );
+        }
+
+        #[test]
+        fn rejects_unaligned_start() {
+            assert_eq!(
+                check_erase(&[ERASABLE], 0, 10, 15, 1),
+                Err(FlashError::UnalignedEraseAddress)
+            );
+        }
+
+        #[test]
+        fn rejects_page_count_overflow() {
+            assert_eq!(
+                check_erase(&[ERASABLE], 0, 10, 10, u32::MAX),
+                Err(FlashError::InvalidRange)
+            );
+        }
+
+        #[test]
+        fn rejects_start_below_base() {
+            assert_eq!(
+                check_erase(&[ERASABLE], 20, 10, 10, 1),
+                Err(FlashError::InvalidRange)
+            );
+        }
+    }
 }
