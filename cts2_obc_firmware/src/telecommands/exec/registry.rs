@@ -1,4 +1,4 @@
-use super::super::implementation::{config, demo, flash, system};
+use super::super::implementation::{config, demo, flash, log, system};
 use cts2_obc_telecommands::definitions::{
     Parameter, ParameterType, ReadinessLevel, TelecommandDefinition,
 };
@@ -177,6 +177,95 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         readiness: ReadinessLevel::GroundUsage,
         validate: validators::flash_erase,
     },
+    TelecommandDefinition {
+        name: "set_log_sink_enabled",
+        exec: log::set_log_sink_enabled_telecommand,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "sink_name",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "enabled",
+                data_type: ParameterType::Bool,
+                units: None,
+                constraints: None,
+            },
+        ],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_sink_enabled,
+    },
+    TelecommandDefinition {
+        name: "get_log_sink_config",
+        exec: log::get_log_sink_config_telecommand,
+        num_parameters: 1,
+        parameter_list: &[Parameter {
+            name: "sink_name",
+            data_type: ParameterType::String,
+            units: None,
+            constraints: None,
+        }],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::get_log_sink_config,
+    },
+    TelecommandDefinition {
+        name: "get_log_system_config",
+        exec: log::get_log_system_config_telecommand,
+        num_parameters: 1,
+        parameter_list: &[Parameter {
+            name: "system_name",
+            data_type: ParameterType::String,
+            units: None,
+            constraints: None,
+        }],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::get_log_system_config,
+    },
+    TelecommandDefinition {
+        name: "set_log_system_severity_mask",
+        exec: log::set_log_system_severity_mask_telecommand,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "system_name",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "severity_mask",
+                data_type: ParameterType::U32,
+                units: None,
+                constraints: Some(0..32),
+            },
+        ],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_system_severity_mask,
+    },
+    TelecommandDefinition {
+        name: "set_log_system_file_logging_enabled",
+        exec: log::set_log_system_file_logging_enabled_telecommand,
+        num_parameters: 2,
+        parameter_list: &[
+            Parameter {
+                name: "system_name",
+                data_type: ParameterType::String,
+                units: None,
+                constraints: None,
+            },
+            Parameter {
+                name: "enabled",
+                data_type: ParameterType::Bool,
+                units: None,
+                constraints: None,
+            },
+        ],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::set_log_system_file_logging_enabled,
+    },
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {
@@ -199,6 +288,12 @@ const fn assert_unique() {
     let mut i = 0;
     while i < TELECOMMAND_DEFINITIONS.len() {
         let name_i = TELECOMMAND_DEFINITIONS[i].name;
+        if TELECOMMAND_DEFINITIONS[i].parameter_list.len()
+            != TELECOMMAND_DEFINITIONS[i].num_parameters as usize
+        {
+            panic!("Telecommand parameter count does not match parameter list");
+        }
+
         let mut j = i + 1;
         while j < TELECOMMAND_DEFINITIONS.len() {
             let name_j = TELECOMMAND_DEFINITIONS[j].name;
