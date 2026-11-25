@@ -28,14 +28,20 @@ pub fn poll_uart_rx(
     >,
 ) {
     let mut buf = [0; MAX_TELECOMMAND_STR_LENGTH];
-    let buf_size = rx_transfer.read(&mut buf).unwrap();
-
-    // Process data[..pending].
-    for &b in buf.iter().take(buf_size) {
-        if b != 0 {
-            rprintln!("RX: {}", b);
+    match rx_transfer.read(&mut buf) {
+        Ok(buf_size) => {
+            // Process data[..pending].
+            for &b in buf.iter().take(buf_size) {
+                if b != 0 {
+                    rprintln!("RX: {}", b);
+                }
+                uart_push_byte(b);
+            }
         }
-        uart_push_byte(b);
+        Err(_overrun) => {
+            // DMA buffer overrun - log it but continue processing
+            rprintln!("DMA RX Overrun - data may have been lost");
+        }
     }
 }
 
@@ -148,20 +154,16 @@ pub fn process_umbilical_commands() {
                 rprintln!("CMD: {}", cmd_str);
 
                 match dispatch_command(cmd_str) {
-                    Ok(DispatchOutcome::Executed) => {
-                        rprintln!("Command executed successfully");
+                    Ok(DispatchOutcome::Queued) => {
+                        rprintln!("Command queued successfully");
                     }
 
                     Ok(DispatchOutcome::Duplicate) => {
                         rprintln!("Duplicate command ignored");
                     }
 
-                    Ok(DispatchOutcome::DelayedNotReady) => {
-                        rprintln!("Delayed execution not available");
-                    }
-
                     Err(_) => {
-                        rprintln!("Command execution failed");
+                        rprintln!("Command dispatch failed");
                     }
                 }
             }
