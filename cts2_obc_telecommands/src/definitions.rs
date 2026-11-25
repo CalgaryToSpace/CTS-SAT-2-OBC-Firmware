@@ -21,6 +21,7 @@ pub enum ReadinessLevel {
 pub enum ParameterType {
     U32,
     U64,
+    Bool,
     String,
 }
 
@@ -29,6 +30,7 @@ impl ParameterType {
         match self {
             ParameterType::U32 => "u32",
             ParameterType::U64 => "u64",
+            ParameterType::Bool => "bool",
             ParameterType::String => "str",
         }
     }
