@@ -1,3 +1,5 @@
+use cts2_obc_telecommands::error::FlashError;
+
 #[derive(Clone, Copy)]
 pub struct Segment {
     pub start: u32,
@@ -44,6 +46,7 @@ pub const fn assert_valid_segments(segments: &[Segment]) {
 }
 
 // WARNING: This function assumes that the segments are sorted and non overlapping
+// Which is checked during build time already
 // This could improve to O(log n) incase the memory map is large, but for now this is good enough.
 pub fn is_range_allowed(
     segments: &[Segment],
@@ -70,6 +73,70 @@ pub fn is_range_allowed(
     }
 
     false
+}
+
+fn end_address(start: u32, length: u32) -> Result<u32, FlashError> {
+    length
+        .checked_sub(1)
+        .and_then(|offset| start.checked_add(offset))
+        .ok_or(FlashError::InvalidRange)
+}
+
+pub fn check_read(segments: &[Segment], start: u32, length: usize) -> Result<(), FlashError> {
+    let length = u32::try_from(length).map_err(|_| FlashError::InvalidRange)?;
+    let end = end_address(start, length)?;
+
+    if !is_range_allowed(segments, start, end, |segment| segment.readable) {
+        return Err(FlashError::ReadNotAllowed);
+    }
+
+    Ok(())
+}
+
+pub fn check_write(segments: &[Segment], start: u32, length: usize) -> Result<(), FlashError> {
+    if !start.is_multiple_of(8) {
+        return Err(FlashError::UnalignedWriteAddress);
+    }
+
+    let length = u32::try_from(length).map_err(|_| FlashError::InvalidRange)?;
+    let padded_length = length
+        .checked_next_multiple_of(8)
+        .ok_or(FlashError::InvalidRange)?;
+    let end = end_address(start, padded_length)?;
+
+    if !is_range_allowed(segments, start, end, |segment| segment.writable) {
+        return Err(FlashError::WriteNotAllowed);
+    }
+
+    Ok(())
+}
+
+pub fn check_erase(
+    segments: &[Segment],
+    base_address: u32,
+    page_size: u32,
+    start: u32,
+    page_count: u32,
+) -> Result<u32, FlashError> {
+    if !start.is_multiple_of(page_size) {
+        return Err(FlashError::UnalignedEraseAddress);
+    }
+
+    let length = page_count
+        .checked_mul(page_size)
+        .ok_or(FlashError::InvalidRange)?;
+    let end = end_address(start, length)?;
+
+    if !is_range_allowed(segments, start, end, |segment| segment.erasable) {
+        return Err(FlashError::EraseNotAllowed);
+    }
+
+    let first_page = start
+        .checked_sub(base_address)
+        .ok_or(FlashError::InvalidRange)?
+        / page_size;
+
+    Ok(first_page)
 }
 
 #[cfg(test)]
