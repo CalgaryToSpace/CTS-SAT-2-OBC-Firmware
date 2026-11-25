@@ -492,7 +492,11 @@ mod tests {
             Ok((0x0800_0000, MAX_FLASH_READ_BYTES))
         );
 
-        for length in [0, u64::from(MAX_FLASH_READ_BYTES) + 1, u64::from(u32::MAX) + 1] {
+        for length in [
+            0,
+            u64::from(MAX_FLASH_READ_BYTES) + 1,
+            u64::from(u32::MAX) + 1,
+        ] {
             let args = std::format!("0x08000000,{length}");
             assert_eq!(
                 flash_read(&args),
