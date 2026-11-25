@@ -23,6 +23,7 @@ mod error;
 mod obc_temperature_sensor;
 //mod telecommand_implementation;
 //mod telecommand_registry;
+mod log;
 mod reset;
 mod telecommands;
 mod timekeeping;
