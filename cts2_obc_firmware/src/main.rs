@@ -9,14 +9,20 @@ use cortex_m::interrupt::free as critical_section;
 use cortex_m::peripheral::NVIC;
 use rtt_target::{rprintln, rtt_init_print};
 use static_cell::StaticCell;
+use stm32l4xx_hal::gpio::gpiob;
+use stm32l4xx_hal::gpio::{Alternate, OpenDrain};
 use stm32l4xx_hal::{
     self as stm32_hal,
     dma::CircReadDma as _,
     gpio::{Output, PushPull, gpioc::PC7},
+    i2c::I2c,
     prelude::*,
 };
 
 mod error;
+mod obc_temperature_sensor;
+//mod telecommand_implementation;
+//mod telecommand_registry;
 mod log;
 mod reset;
 mod telecommands;
@@ -28,10 +34,22 @@ use umbilical_uart::{process_umbilical_commands, send_umbilical_uart};
 use crate::umbilical_uart::MAX_TELECOMMAND_STR_LENGTH;
 use crate::umbilical_uart::poll_uart_rx;
 
+// I2c type for making this global
+pub(crate) type I2c1Peripheral = I2c<
+    stm32_hal::stm32::I2C1,
+    (
+        gpiob::PB8<Alternate<OpenDrain, 4>>,
+        gpiob::PB9<Alternate<OpenDrain, 4>>,
+    ),
+>;
+
 static PERIPHERAL_GREEN_LED: Mutex<RefCell<Option<PC7<Output<PushPull>>>>> =
     Mutex::new(RefCell::new(None));
 
 static PERIPHERAL_DELAY_TIMER: Mutex<RefCell<Option<stm32_hal::delay::Delay>>> =
+    Mutex::new(RefCell::new(None));
+
+pub(crate) static PERIPHERAL_I2C1: Mutex<RefCell<Option<I2c1Peripheral>>> =
     Mutex::new(RefCell::new(None));
 
 static PERIPHERAL_RCC: Mutex<RefCell<Option<stm32_hal::rcc::Rcc>>> = Mutex::new(RefCell::new(None));
@@ -77,6 +95,7 @@ fn entry_point() -> ! {
     let timer = stm32_hal::delay::Delay::new(cortex_peripherals.SYST, clocks);
 
     // --- GPIO ---
+    let mut gpiob = peripheral.GPIOB.split(&mut rcc.ahb2);
     let mut gpioc = peripheral.GPIOC.split(&mut rcc.ahb2);
     let mut gpiod = peripheral.GPIOD.split(&mut rcc.ahb2);
     let led = gpioc
@@ -128,6 +147,31 @@ fn entry_point() -> ! {
 
     send_umbilical_uart(b"USART2 ready. Buffered RX active.\r\n");
 
+    // -- I2C --
+    // Configure I2C1
+    let mut scl = gpiob.pb8.into_alternate_open_drain::<4>(
+        &mut gpiob.moder,
+        &mut gpiob.otyper,
+        &mut gpiob.afrh,
+    );
+
+    let mut sda = gpiob.pb9.into_alternate_open_drain::<4>(
+        &mut gpiob.moder,
+        &mut gpiob.otyper,
+        &mut gpiob.afrh,
+    );
+
+    scl.internal_pull_up(&mut gpiob.pupdr, true);
+    sda.internal_pull_up(&mut gpiob.pupdr, true);
+
+    let i2c_config = stm32_hal::i2c::Config::new(100.kHz(), clocks);
+
+    let i2c = I2c::i2c1(peripheral.I2C1, (scl, sda), i2c_config, &mut rcc.apb1r1);
+
+    critical_section(|cs| {
+        PERIPHERAL_I2C1.borrow(cs).replace(Some(i2c));
+    });
+
     send_umbilical_uart(b"System reset cause: ");
     send_umbilical_uart(reset_cause.as_str().as_bytes());
     send_umbilical_uart(b"\r\n");
@@ -161,7 +205,9 @@ fn toggle_led() {
     });
 }
 
-fn timer_delay_ms(ms: u16) {
+// Turned this from fn timer_delay_ms INTO pub(crate) fn timer_delay_ms(ms: u16)
+// Because I need this function in the obc_temperature_sensor
+pub(crate) fn timer_delay_ms(ms: u16) {
     critical_section(|cs| {
         if let Some(ref mut timer) = *PERIPHERAL_DELAY_TIMER.borrow(cs).borrow_mut() {
             timer.delay_ms(ms);

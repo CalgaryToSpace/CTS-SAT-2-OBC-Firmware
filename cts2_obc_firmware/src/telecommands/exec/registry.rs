@@ -115,6 +115,14 @@ pub const TELECOMMAND_DEFINITIONS: &[TelecommandDefinition] = &[
         validate: validators::timestamp_timea_log,
     },
     TelecommandDefinition {
+        name: "get_temperature",
+        exec: system::get_temperature,
+        num_parameters: 0,
+        parameter_list: &[],
+        readiness: ReadinessLevel::Operation,
+        validate: validators::no_args,
+    },
+    TelecommandDefinition {
         name: "set_log_sink_enabled",
         exec: log::set_log_sink_enabled_telecommand,
         num_parameters: 2,
