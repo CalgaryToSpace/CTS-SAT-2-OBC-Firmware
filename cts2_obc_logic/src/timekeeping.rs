@@ -26,7 +26,12 @@ impl TimestampError {
 
 // Returns UNIX timestamp
 // * IMPORTANT: this function calculates global UTC time
-pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
+pub fn timestamp_ms(mut timea_input: &str) -> Result<u64, TimestampError> {
+    // Remove quotation marks
+    if timea_input.starts_with('"') && timea_input.ends_with('"') && timea_input.len() >= 2 {
+        timea_input = &timea_input[1..timea_input.len() - 1];
+    }
+
     // Initialize array for tokens from input, and initialize iterator
     let mut tokens = [""; 22];
     let mut timea_iterator = timea_input.split([',', ';', '*']);
@@ -63,7 +68,7 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     let minute: i32 = tokens[18]
         .parse()
         .map_err(|_| TimestampError::ParseIntError)?;
-    let milliseconds: i32 = tokens[19]
+    let millisecond: i32 = tokens[19]
         .parse()
         .map_err(|_| TimestampError::ParseIntError)?;
     let utc_status: &str = tokens[20];
@@ -77,7 +82,7 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
     if !(1..=12).contains(&month)
         || !(0..=23).contains(&hour)
         || !(0..=59).contains(&minute)
-        || !(0..=60999).contains(&milliseconds)
+        || !(0..=59999).contains(&millisecond)
     {
         return Err(TimestampError::ValueOutOfRange);
     }
@@ -120,7 +125,7 @@ pub fn timestamp_ms(timea_input: &str) -> Result<u64, TimestampError> {
         (days_since_epoch as u64 * 86400) + (hour as u64 * 3600) + (minute as u64 * 60);
 
     // Get total milliseconds. Add 21600000 for local time
-    let unix_time_ms: u64 = (seconds * 1000) + (milliseconds as u64);
+    let unix_time_ms: u64 = (seconds * 1000) + (millisecond as u64);
 
     Ok(unix_time_ms)
 }
